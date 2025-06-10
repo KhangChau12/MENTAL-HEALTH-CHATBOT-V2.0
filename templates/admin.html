@@ -1,0 +1,1102 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Mental Health Assistant{% endblock %}
+
+{% block additional_css %}
+<style>
+.admin-container {
+    min-height: 100vh;
+    background: var(--color-background);
+    padding: 2rem;
+}
+
+.admin-header {
+    margin-bottom: 3rem;
+    text-align: center;
+}
+
+.admin-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+}
+
+.admin-subtitle {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+}
+
+.admin-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-icon.primary {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.stat-icon.success {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.stat-icon.warning {
+    background: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.stat-icon.error {
+    background: var(--color-error-light);
+    color: var(--color-error);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.stat-label {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.stat-change {
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.stat-change.positive {
+    color: var(--color-success);
+}
+
+.stat-change.negative {
+    color: var(--color-error);
+}
+
+.admin-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.admin-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.recent-sessions {
+    grid-column: 1 / -1;
+}
+
+.sessions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.sessions-table th,
+.sessions-table td {
+    padding: 0.875rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sessions-table th {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.sessions-table th:hover {
+    color: var(--color-primary);
+}
+
+.sessions-table td {
+    color: var(--color-text);
+}
+
+.session-status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-completed {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.status-in-progress {
+    background: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.status-abandoned {
+    background: var(--color-error-light);
+    color: var(--color-error);
+}
+
+.assessment-chart {
+    height: 300px;
+    display: flex;
+    align-items: end;
+    justify-content: space-around;
+    padding: 1rem;
+    background: var(--color-background);
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    position: relative;
+}
+
+.chart-bar {
+    width: 40px;
+    background: linear-gradient(to top, var(--color-primary), var(--color-primary-light));
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 20px;
+}
+
+.chart-bar:hover {
+    background: linear-gradient(to top, var(--color-primary-dark), var(--color-primary));
+    transform: scale(1.05);
+}
+
+.chart-label {
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.chart-value {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--color-surface);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-border);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.admin-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid var(--color-border);
+    border-radius: 0.75rem;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.admin-button:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+.admin-button.primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.admin-button.primary:hover {
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    color: white;
+}
+
+.admin-button.danger {
+    border-color: var(--color-error);
+    color: var(--color-error);
+}
+
+.admin-button.danger:hover {
+    background: var(--color-error);
+    color: white;
+    border-color: var(--color-error);
+}
+
+.export-options {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.export-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.export-option:hover {
+    border-color: var(--color-primary-light);
+    background: var(--color-primary-light);
+}
+
+.export-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.export-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.export-details h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.export-details p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.system-health {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.health-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.health-item:hover {
+    border-color: var(--color-primary-light);
+}
+
+.health-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-healthy {
+    background: var(--color-success);
+}
+
+.status-warning {
+    background: var(--color-warning);
+}
+
+.status-error {
+    background: var(--color-error);
+}
+
+.data-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.data-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--color-background);
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.data-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: block;
+}
+
+.data-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+.performance-metrics {
+    margin-top: 1rem;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: var(--color-text);
+}
+
+.metric-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.refresh-button {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    z-index: 100;
+}
+
+.refresh-button:hover {
+    background: var(--color-primary-dark);
+    transform: scale(1.1);
+}
+
+.refresh-button.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 1rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-sections {
+        grid-template-columns: 1fr;
+    }
+    
+    .sessions-table {
+        font-size: 0.875rem;
+    }
+    
+    .sessions-table th,
+    .sessions-table td {
+        padding: 0.5rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .admin-button {
+        justify-content: center;
+    }
+    
+    .data-overview {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Admin Header -->
+    <div class="admin-header">
+        <h1 class="admin-title">Bảng điều khiển Quản trị</h1>
+        <p class="admin-subtitle">
+            Quản lý và theo dõi hệ thống Mental Health Chatbot
+        </p>
+    </div>
+    
+    <!-- Admin Content -->
+    <div class="admin-content">
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-label">Tổng số phiên</div>
+                <div class="stat-value" id="total-sessions">1,248</div>
+                <div class="stat-change positive">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                        <polyline points="17 6 23 6 23 12"/>
+                    </svg>
+                    +12% tháng này
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon success">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22,4 12,14.01 9,11.01"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-label">Đánh giá hoàn thành</div>
+                <div class="stat-value" id="completed-assessments">987</div>
+                <div class="stat-change positive">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                        <polyline points="17 6 23 6 23 12"/>
+                    </svg>
+                    +8% tháng này
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon warning">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12,6 12,12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-label">Cảnh báo rủi ro cao</div>
+                <div class="stat-value" id="high-risk-cases">23</div>
+                <div class="stat-change negative">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+                        <polyline points="17 18 23 18 23 12"/>
+                    </svg>
+                    -5% tháng này
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon error">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-label">Phiên bị hủy</div>
+                <div class="stat-value" id="abandoned-sessions">156</div>
+                <div class="stat-change positive">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+                        <polyline points="17 18 23 18 23 12"/>
+                    </svg>
+                    -3% tháng này
+                </div>
+            </div>
+        </div>
+        
+        <!-- Admin Sections -->
+        <div class="admin-sections">
+            <!-- Assessment Analytics -->
+            <div class="admin-section">
+                <h2 class="section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    Thao tác nhanh
+                </h2>
+                
+                <div class="action-buttons">
+                    <button class="admin-button primary" onclick="clearCache()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                            <path d="M16 16h5v5"/>
+                        </svg>
+                        Xóa cache
+                    </button>
+                    
+                    <button class="admin-button" onclick="testApiConnection()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v6m0 6v6"/>
+                        </svg>
+                        Test API
+                    </button>
+                    
+                    <button class="admin-button" onclick="sendTestEmail()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                        Test Email
+                    </button>
+                    
+                    <button class="admin-button danger" onclick="backupData()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Backup
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Sessions Table -->
+        <div class="admin-section recent-sessions">
+            <h2 class="section-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Phiên gần đây
+            </h2>
+            
+            <table class="sessions-table">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">ID Phiên</th>
+                        <th onclick="sortTable(1)">Thời gian</th>
+                        <th onclick="sortTable(2)">Loại đánh giá</th>
+                        <th onclick="sortTable(3)">Điểm số</th>
+                        <th onclick="sortTable(4)">Mức rủi ro</th>
+                        <th onclick="sortTable(5)">Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="sessions-tbody">
+                    <tr>
+                        <td>#S001248</td>
+                        <td>10/06/2025 14:30</td>
+                        <td>AI Chat</td>
+                        <td>25/63</td>
+                        <td>Thấp</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001248')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001247</td>
+                        <td>10/06/2025 13:45</td>
+                        <td>Logic Poll</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td><span class="session-status status-in-progress">Đang tiến hành</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001247')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001246</td>
+                        <td>10/06/2025 12:15</td>
+                        <td>AI Chat</td>
+                        <td>42/63</td>
+                        <td>Cao</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button danger" onclick="viewSession('S001246')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001245</td>
+                        <td>10/06/2025 11:30</td>
+                        <td>Logic Poll</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td><span class="session-status status-abandoned">Bỏ dở</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001245')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001244</td>
+                        <td>10/06/2025 10:00</td>
+                        <td>AI Chat</td>
+                        <td>18/63</td>
+                        <td>Thấp</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001244')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001243</td>
+                        <td>10/06/2025 09:15</td>
+                        <td>AI Chat</td>
+                        <td>35/63</td>
+                        <td>Vừa phải</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001243')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001242</td>
+                        <td>10/06/2025 08:20</td>
+                        <td>Logic Poll</td>
+                        <td>15/63</td>
+                        <td>Thấp</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001242')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001241</td>
+                        <td>09/06/2025 17:45</td>
+                        <td>AI Chat</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td><span class="session-status status-abandoned">Bỏ dở</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001241')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001240</td>
+                        <td>09/06/2025 16:30</td>
+                        <td>Logic Poll</td>
+                        <td>28/63</td>
+                        <td>Vừa phải</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button" onclick="viewSession('S001240')">Xem</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#S001239</td>
+                        <td>09/06/2025 15:10</td>
+                        <td>AI Chat</td>
+                        <td>52/63</td>
+                        <td>Cao</td>
+                        <td><span class="session-status status-completed">Hoàn thành</span></td>
+                        <td>
+                            <button class="admin-button danger" onclick="viewSession('S001239')">Xem</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Pagination -->
+            <div class="pagination" style="margin-top: 2rem; text-align: center;">
+                <button class="admin-button" onclick="loadPage(1)">1</button>
+                <button class="admin-button primary" onclick="loadPage(2)">2</button>
+                <button class="admin-button" onclick="loadPage(3)">3</button>
+                <span style="margin: 0 1rem; color: var(--color-text-muted);">...</span>
+                <button class="admin-button" onclick="loadPage(10)">10</button>
+            </div>
+        </div>
+        
+        <!-- System Analytics -->
+        <div class="admin-section" style="grid-column: 1 / -1; margin-top: 2rem;">
+            <h2 class="section-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18.7 8l-5-5L9 7.7l-4.7-4.7"/>
+                </svg>
+                Phân tích chi tiết
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--color-text);">Xu hướng theo thời gian</h4>
+                    <div style="background: var(--color-background); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--color-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">Tuần này</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-success);">+15%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">Tháng này</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-success);">+8%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">Quý này</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-success);">+22%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--color-text);">Phân bố độ tuổi</h4>
+                    <div style="background: var(--color-background); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--color-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">18-24 tuổi</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-text);">32%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">25-34 tuổi</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-text);">28%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">35-44 tuổi</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-text);">24%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">45+ tuổi</span>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-text);">16%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Refresh Button -->
+    <button class="refresh-button" onclick="refreshDashboard()" title="Làm mới dữ liệu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 16h5v5"/>
+        </svg>
+    </button>
+</div>
+
+<script>
+// Quick refresh function
+function refreshDashboard() {
+    const button = document.querySelector('.refresh-button');
+    button.classList.add('spinning');
+    
+    // Simulate data refresh
+    setTimeout(() => {
+        button.classList.remove('spinning');
+        if (window.adminController) {
+            window.adminController.refreshStats();
+        }
+    }, 1000);
+}
+
+// Quick table sorting function
+function sortTable(columnIndex) {
+    // This will be enhanced by admin.js
+    console.log('Sorting column:', columnIndex);
+}
+
+// Quick pagination function
+function loadPage(page) {
+    console.log('Loading page:', page);
+    // This will be enhanced by admin.js
+}
+</script>
+{% endblock %}
+
+{% block additional_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    Phân tích đánh giá
+                </h2>
+                
+                <div class="assessment-chart">
+                    <div class="chart-bar" style="height: 60%;">
+                        <div class="chart-value">180</div>
+                        <div class="chart-label">PHQ-9</div>
+                    </div>
+                    <div class="chart-bar" style="height: 45%;">
+                        <div class="chart-value">135</div>
+                        <div class="chart-label">GAD-7</div>
+                    </div>
+                    <div class="chart-bar" style="height: 80%;">
+                        <div class="chart-value">240</div>
+                        <div class="chart-label">DASS-21</div>
+                    </div>
+                    <div class="chart-bar" style="height: 25%;">
+                        <div class="chart-value">75</div>
+                        <div class="chart-label">Rủi ro</div>
+                    </div>
+                </div>
+                
+                <div class="data-overview">
+                    <div class="data-item">
+                        <span class="data-value">79%</span>
+                        <span class="data-label">Tỷ lệ hoàn thành</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-value">4.2</span>
+                        <span class="data-label">Đánh giá TB</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-value">12m</span>
+                        <span class="data-label">Thời gian TB</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Health -->
+            <div class="admin-section">
+                <h2 class="section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    Tình trạng hệ thống
+                </h2>
+                
+                <div class="system-health">
+                    <div class="health-item">
+                        <span>API Together AI</span>
+                        <div class="health-status">
+                            <div class="status-indicator status-healthy"></div>
+                            Hoạt động tốt
+                        </div>
+                    </div>
+                    
+                    <div class="health-item">
+                        <span>Database</span>
+                        <div class="health-status">
+                            <div class="status-indicator status-healthy"></div>
+                            Hoạt động tốt
+                        </div>
+                    </div>
+                    
+                    <div class="health-item">
+                        <span>Export Service</span>
+                        <div class="health-status">
+                            <div class="status-indicator status-warning"></div>
+                            Chậm
+                        </div>
+                    </div>
+                    
+                    <div class="health-item">
+                        <span>Email Service</span>
+                        <div class="health-status">
+                            <div class="status-indicator status-healthy"></div>
+                            Hoạt động tốt
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="performance-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Response Time</span>
+                        <span class="metric-value">245ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Uptime</span>
+                        <span class="metric-value">99.9%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Memory Usage</span>
+                        <span class="metric-value">67%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">CPU Usage</span>
+                        <span class="metric-value">23%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Export Options -->
+            <div class="admin-section">
+                <h2 class="section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    Xuất dữ liệu
+                </h2>
+                
+                <div class="export-options">
+                    <div class="export-option">
+                        <div class="export-info">
+                            <div class="export-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                </svg>
+                            </div>
+                            <div class="export-details">
+                                <h4>Báo cáo thống kê</h4>
+                                <p>Xuất báo cáo tổng hợp theo tháng</p>
+                            </div>
+                        </div>
+                        <button class="admin-button" onclick="exportData('monthly-report')">Xuất</button>
+                    </div>
+                    
+                    <div class="export-option">
+                        <div class="export-info">
+                            <div class="export-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <rect x="7" y="7" width="10" height="10" rx="1" ry="1"/>
+                                </svg>
+                            </div>
+                            <div class="export-details">
+                                <h4>Dữ liệu đánh giá</h4>
+                                <p>Xuất dữ liệu thô các phiên đánh giá</p>
+                            </div>
+                        </div>
+                        <button class="admin-button" onclick="exportData('assessment-data')">Xuất</button>
+                    </div>
+                    
+                    <div class="export-option">
+                        <div class="export-info">
+                            <div class="export-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12,6 12,12"/>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                            </div>
+                            <div class="export-details">
+                                <h4>Trường hợp rủi ro cao</h4>
+                                <p>Danh sách các trường hợp cần chú ý</p>
+                            </div>
+                        </div>
+                        <button class="admin-button danger" onclick="exportData('high-risk')">Xuất</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="admin-section">
+                <h2 class="section-title">
+                    <svg xmlns="http://www.w3.
