@@ -1,5 +1,6 @@
 """
 Constants and Enums for the Mental Health Chatbot
+Vietnamese-only version (cleaned up)
 """
 
 from enum import Enum
@@ -43,11 +44,6 @@ class RiskLevels:
     MODERATE = 'moderate'
     HIGH = 'high'
 
-class Languages:
-    """Supported language constants"""
-    VIETNAMESE = 'vi'
-    ENGLISH = 'en'
-
 class ExportFormats:
     """Export format constants"""
     PDF = 'pdf'
@@ -64,114 +60,63 @@ class MessageTypes:
     ERROR = 'error'
     CLARIFICATION = 'clarification'
 
-# Keyword sets for classification fallback
+# Vietnamese keyword sets for classification
 KEYWORD_SETS = {
-    'depression_keywords': {
-        'vietnamese': [
-            'buồn', 'chán nản', 'tuyệt vọng', 'vô vọng', 'trầm cảm',
-            'mệt mỏi', 'không hứng thú', 'mất động lực', 'cô đơn',
-            'tự ti', 'vô dụng', 'không có ý nghĩa'
-        ],
-        'english': [
-            'sad', 'depressed', 'hopeless', 'worthless', 'empty',
-            'tired', 'fatigue', 'no interest', 'unmotivated', 'lonely',
-            'meaningless', 'useless'
-        ]
-    },
-    'anxiety_keywords': {
-        'vietnamese': [
-            'lo lắng', 'hồi hộp', 'căng thẳng', 'sợ hãi', 'bồn chồn',
-            'bất an', 'hoảng loạn', 'run rẩy', 'tim đập nhanh'
-        ],
-        'english': [
-            'anxious', 'worried', 'nervous', 'panic', 'restless',
-            'uneasy', 'fearful', 'tense', 'racing heart'
-        ]
-    },
-    'stress_keywords': {
-        'vietnamese': [
-            'căng thẳng', 'áp lực', 'quá tải', 'không kiểm soát',
-            'choáng ngợp', 'bực bội', 'cáu kỉnh', 'mất kiên nhẫn'
-        ],
-        'english': [
-            'stressed', 'pressure', 'overwhelmed', 'out of control',
-            'frustrated', 'irritable', 'impatient', 'burned out'
-        ]
-    },
-    'suicide_keywords': {
-        'vietnamese': [
-            'tự tử', 'chết', 'kết thúc cuộc đời', 'không muốn sống',
-            'tự làm hại', 'muốn biến mất', 'cuộc sống vô nghĩa'
-        ],
-        'english': [
-            'suicide', 'kill myself', 'end my life', 'want to die',
-            'self harm', 'hurt myself', 'life meaningless', 'better off dead'
-        ]
-    }
+    'depression_keywords': [
+        'buồn', 'chán nản', 'tuyệt vọng', 'vô vọng', 'trầm cảm',
+        'mệt mỏi', 'không hứng thú', 'mất động lực', 'cô đơn',
+        'tự ti', 'vô dụng', 'không có ý nghĩa', 'không muốn làm gì'
+    ],
+    'anxiety_keywords': [
+        'lo lắng', 'hồi hộp', 'căng thẳng', 'sợ hãi', 'bồn chồn',
+        'bất an', 'hoảng loạn', 'run rẩy', 'tim đập nhanh', 'không yên'
+    ],
+    'stress_keywords': [
+        'căng thẳng', 'áp lực', 'quá tải', 'không kiểm soát',
+        'choáng ngợp', 'bực bội', 'cáu kỉnh', 'mất kiên nhẫn', 'stress'
+    ],
+    'suicide_keywords': [
+        'tự tử', 'chết', 'kết thúc cuộc đời', 'không muốn sống',
+        'tự làm hại', 'muốn biến mất', 'cuộc sống vô nghĩa', 'tự gây thương tích'
+    ]
 }
 
 # Intensity modifiers for keyword classification
 INTENSITY_MODIFIERS = {
-    'high_intensity': {
-        'vietnamese': [
-            'rất', 'cực kỳ', 'quá', 'vô cùng', 'luôn luôn', 'liên tục',
-            'không thể chịu đựng', 'kinh khủng', 'tệ hại'
-        ],
-        'english': [
-            'very', 'extremely', 'severely', 'constantly', 'always',
-            'unbearable', 'terrible', 'awful', 'horrible'
-        ]
-    },
-    'moderate_intensity': {
-        'vietnamese': [
-            'khá', 'thường xuyên', 'nhiều lần', 'đáng kể', 'có phần'
-        ],
-        'english': [
-            'quite', 'often', 'frequently', 'significantly', 'somewhat'
-        ]
-    },
-    'low_intensity': {
-        'vietnamese': [
-            'hơi', 'đôi khi', 'thỉnh thoảng', 'ít khi', 'nhẹ'
-        ],
-        'english': [
-            'slightly', 'sometimes', 'occasionally', 'rarely', 'mildly'
-        ]
-    }
+    'high_intensity': [
+        'rất', 'cực kỳ', 'quá', 'vô cùng', 'luôn luôn', 'liên tục',
+        'không thể chịu đựng', 'kinh khủng', 'tệ hại', 'khủng khiếp'
+    ],
+    'moderate_intensity': [
+        'khá', 'thường xuyên', 'nhiều lần', 'đáng kể', 'có phần',
+        'tương đối', 'đôi lúc', 'thỉnh thoảng'
+    ],
+    'low_intensity': [
+        'hơi', 'đôi khi', 'thỉnh thoảng', 'ít khi', 'nhẹ',
+        'một chút', 'không nhiều'
+    ]
 }
 
-# Emergency contact information
+# Emergency contact information (Vietnam)
 EMERGENCY_CONTACTS = {
-    'vietnam': {
-        'suicide_prevention': '1800-0011',
-        'mental_health_hotline': '1900-6048',
-        'emergency_services': '113'
-    },
-    'international': {
-        'suicide_prevention': '988',  # US
-        'crisis_text_line': 'Text HOME to 741741'
-    }
+    'suicide_prevention': '1800-0011',
+    'mental_health_hotline': '1900-6048',
+    'emergency_services': '113',
+    'tâm_lý_hotline': '1800-1060'
 }
 
-# Resource URLs
+# Resource URLs (Vietnam)
 RESOURCE_URLS = {
-    'vietnam': {
-        'mental_health_foundation': 'https://tâmlý.vn',
-        'government_health': 'https://moh.gov.vn',
-        'crisis_support': 'https://tamlinh.org'
-    },
-    'international': {
-        'who_mental_health': 'https://www.who.int/mental_disorders',
-        'nami': 'https://www.nami.org',
-        'mental_health_america': 'https://www.mhanational.org'
-    }
+    'mental_health_foundation': 'https://tamly.vn',
+    'government_health': 'https://moh.gov.vn',
+    'crisis_support': 'https://tamlinh.org',
+    'vietnam_psychology': 'https://hoisinhhocvietnam.org.vn'
 }
 
 # Validation patterns
 VALIDATION_PATTERNS = {
     'session_id': r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
-    'assessment_score': r'^[0-4]$',
-    'language_code': r'^(vi|en)$'
+    'assessment_score': r'^[0-4]$'
 }
 
 # Default configuration values
@@ -191,4 +136,23 @@ ASSESSMENT_LIMITS = {
     'dass21_stress': {'min_questions': 7, 'max_questions': 7},
     'suicide_risk': {'min_questions': 3, 'max_questions': 5},
     'initial': {'min_questions': 5, 'max_questions': 10}
+}
+
+# Vietnamese severity level labels
+SEVERITY_LABELS = {
+    'minimal': 'Tối thiểu',
+    'mild': 'Nhẹ',
+    'moderate': 'Trung bình',
+    'moderately_severe': 'Trung bình nặng',
+    'severe': 'Nặng',
+    'extremely_severe': 'Cực kỳ nặng',
+    'normal': 'Bình thường'
+}
+
+# Vietnamese risk level labels
+RISK_LABELS = {
+    'minimal': 'Tối thiểu',
+    'low': 'Thấp',
+    'moderate': 'Trung bình',
+    'high': 'Cao'
 }
