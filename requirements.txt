@@ -1,22 +1,46 @@
-# Core Flask dependencies
-Flask==2.3.3
-Flask-Session==0.5.0
+# Core Flask and API dependencies
+Flask==3.0.0
+Flask-CORS==4.0.0
+requests==2.31.0
 
-# AI integration
-together>=1.0.0
-
-# Environment management
-python-dotenv==1.0.0
-
-# PDF generation for export (optional)
-reportlab==4.0.4
+# AI and ML libraries
+together==0.2.7
 
 # Data processing
-pandas==2.1.1
+pandas==2.1.4
+numpy==1.24.3
 
-# Development dependencies (optional)
-pytest==7.4.2
-pytest-flask==1.2.0
+# PDF generation for exports
+reportlab==4.0.7
+weasyprint==60.2
 
-# Note: uuid, datetime, logging, json are built-in Python modules
-# They don't need to be installed separately
+# Testing
+pytest==7.4.3
+pytest-mock==3.12.0
+pytest-cov==4.1.0
+unittest-xml-reporting==3.2.0
+
+# Development tools
+python-dotenv==1.0.0
+watchdog==3.0.0
+
+# Logging and monitoring
+structlog==23.2.0
+
+# Validation and utilities
+marshmallow==3.20.1
+python-dateutil==2.8.2
+
+# Performance monitoring (optional)
+psutil==5.9.6
+memory-profiler==0.61.0
+
+# Additional utilities for text processing
+regex==2023.10.3
+unicodedata2==15.1.0
+
+# JSON handling
+jsonschema==4.20.0
+
+# Time and date utilities
+pytz==2023.3

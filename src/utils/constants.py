@@ -1,158 +1,266 @@
 """
-Constants and Enums for the Mental Health Chatbot
-Vietnamese-only version (cleaned up)
+Constants - SỬA ĐỔI để thêm constants cho features mới
+Updated constants for AI-powered transition logic
 """
 
-from enum import Enum
+# === EXISTING CONSTANTS (KEEP UNCHANGED) ===
 
-class ChatStates:
-    """Chat state constants"""
-    CHAT = 'chat'
-    ASSESSMENT = 'assessment'
-    RESULTS = 'results'
-    COMPLETED = 'completed'
+# Assessment Types
+ASSESSMENT_TYPES = [
+    'phq9',
+    'gad7', 
+    'dass21_stress',
+    'suicide_risk',
+    'initial_screening'
+]
 
-class AssessmentTypes:
-    """Assessment type constants"""
-    INITIAL = 'initial'
-    PHQ9 = 'phq9'
-    GAD7 = 'gad7'
-    DASS21_STRESS = 'dass21_stress'
-    SUICIDE_RISK = 'suicide_risk'
+# Language Support
+SUPPORTED_LANGUAGES = {
+    'vi': 'Tiếng Việt',
+    'en': 'English'
+}
 
-class QuestionTypes:
-    """Question type constants"""
-    LIKERT_SCALE = 'likert_scale'
-    BINARY = 'binary'
-    MULTIPLE_CHOICE = 'multiple_choice'
-    OPEN_TEXT = 'open_text'
+# Chat States
+CHAT_STATES = [
+    'started',
+    'in_progress', 
+    'assessment_ready',
+    'assessment_in_progress',
+    'completed'
+]
 
-class SeverityLevels:
-    """Severity level constants"""
-    MINIMAL = 'minimal'
-    MILD = 'mild'
-    MODERATE = 'moderate'
-    MODERATELY_SEVERE = 'moderately_severe'
-    SEVERE = 'severe'
-    EXTREMELY_SEVERE = 'extremely_severe'
-    NORMAL = 'normal'
+# Response Types
+RESPONSE_TYPES = [
+    'greeting',
+    'chat_response',
+    'transition',
+    'assessment_question',
+    'assessment_result',
+    'error'
+]
 
-class RiskLevels:
-    """Risk level constants"""
-    MINIMAL = 'minimal'
-    LOW = 'low'
-    MODERATE = 'moderate'
-    HIGH = 'high'
+# Export Formats
+EXPORT_FORMATS = [
+    'pdf',
+    'json',
+    'txt'
+]
 
-class ExportFormats:
-    """Export format constants"""
-    PDF = 'pdf'
-    JSON = 'json'
+# === NEW CONSTANTS FOR AI-POWERED TRANSITION LOGIC ===
 
-class MessageTypes:
-    """Message type constants"""
-    WELCOME = 'welcome'
-    CONVERSATION = 'conversation'
-    TRANSITION = 'transition'
-    ASSESSMENT_QUESTION = 'assessment_question'
-    ASSESSMENT_COMPLETE = 'assessment_complete'
-    RESULTS = 'results'
-    ERROR = 'error'
-    CLARIFICATION = 'clarification'
+# Emotional Context Types từ AI Analysis
+EMOTIONAL_CONTEXT_TYPES = [
+    'normal_worry',      # Lo lắng bình thường
+    'normal_sadness',    # Buồn bình thường  
+    'situational_stress', # Stress có nguyên nhân rõ ràng
+    'clinical_anxiety',   # Lo âu có dấu hiệu bệnh lý
+    'depression_signs',   # Dấu hiệu trầm cảm
+    'chronic_stress',     # Stress mãn tính
+    'suicide_risk'        # Nguy cơ tự tử
+]
 
-# Vietnamese keyword sets for classification
-KEYWORD_SETS = {
-    'depression_keywords': [
-        'buồn', 'chán nản', 'tuyệt vọng', 'vô vọng', 'trầm cảm',
-        'mệt mỏi', 'không hứng thú', 'mất động lực', 'cô đơn',
-        'tự ti', 'vô dụng', 'không có ý nghĩa', 'không muốn làm gì'
+# Context Type Descriptions
+CONTEXT_TYPE_DESCRIPTIONS = {
+    'normal_worry': 'Lo lắng bình thường về các vấn đề cụ thể',
+    'normal_sadness': 'Buồn bã do các sự kiện hay tình huống cụ thể',
+    'situational_stress': 'Căng thẳng có nguyên nhân rõ ràng và tạm thời',
+    'clinical_anxiety': 'Lo âu không có lý do rõ ràng, ảnh hưởng đến cuộc sống',
+    'depression_signs': 'Dấu hiệu trầm cảm kéo dài, mất hứng thú',
+    'chronic_stress': 'Căng thẳng kéo dài nhiều tuần hoặc tháng',
+    'suicide_risk': 'Có ý định hoặc suy nghĩ tự hại bản thân'
+}
+
+# Assessment Mapping từ Context Types
+CONTEXT_TO_ASSESSMENT_MAPPING = {
+    'normal_worry': 'gad7',
+    'normal_sadness': 'phq9',
+    'situational_stress': 'dass21_stress',
+    'clinical_anxiety': 'gad7',
+    'depression_signs': 'phq9',
+    'chronic_stress': 'dass21_stress',
+    'suicide_risk': 'suicide_risk'
+}
+
+# Temporal Indicators Mapping
+TEMPORAL_INDICATORS = {
+    # Ngắn hạn (low severity)
+    'hôm qua': 0.1, 'hôm nay': 0.1, 'sáng nay': 0.1, 'chiều nay': 0.1, 'tối nay': 0.1,
+    'today': 0.1, 'yesterday': 0.1, 'this morning': 0.1, 'this afternoon': 0.1, 'tonight': 0.1,
+    
+    # Trung hạn (moderate severity)  
+    'tuần này': 0.4, '1 tuần': 0.4, 'mấy ngày': 0.3, 'vài ngày': 0.3, 'tuần trước': 0.4,
+    'this week': 0.4, '1 week': 0.4, 'few days': 0.3, 'several days': 0.3, 'last week': 0.4,
+    
+    # Dài hạn (high severity)
+    '2 tuần': 0.8, 'hai tuần': 0.8, 'mấy tuần': 0.7, 'tháng này': 0.7, '1 tháng': 0.8, 'tháng trước': 0.7,
+    '2 weeks': 0.8, 'two weeks': 0.8, 'few weeks': 0.7, 'this month': 0.7, '1 month': 0.8, 'last month': 0.7,
+    
+    # Rất dài hạn (very high severity)
+    'mấy tháng': 0.9, 'nhiều tháng': 0.9, 'suốt': 0.9, 'liên tục': 0.9, 'mãi mãi': 0.9,
+    'few months': 0.9, 'several months': 0.9, 'constantly': 0.9, 'continuously': 0.9, 'always': 0.9,
+    'kể từ': 0.9, 'từ lúc': 0.9, 'since': 0.9, 'ever since': 0.9
+}
+
+# Conversation Depth Indicators
+DEPTH_INDICATORS = {
+    # Personal pronouns (indicate personal sharing)
+    'personal_pronouns': [
+        'tôi', 'mình', 'em', 'con', 'ta', 'anh', 'chị',
+        'i', 'me', 'my', 'myself', 'mine'
     ],
-    'anxiety_keywords': [
-        'lo lắng', 'hồi hộp', 'căng thẳng', 'sợ hãi', 'bồn chồn',
-        'bất an', 'hoảng loạn', 'run rẩy', 'tim đập nhanh', 'không yên'
+    
+    # Emotional expressions (indicate emotional sharing)
+    'emotional_expressions': [
+        'cảm thấy', 'suy nghĩ', 'lo lắng', 'buồn', 'vui', 'giận', 'sợ', 'hạnh phúc',
+        'feel', 'think', 'worry', 'sad', 'happy', 'angry', 'scared', 'afraid',
+        'anxious', 'depressed', 'stressed', 'overwhelmed', 'frustrated'
     ],
-    'stress_keywords': [
-        'căng thẳng', 'áp lực', 'quá tải', 'không kiểm soát',
-        'choáng ngợp', 'bực bội', 'cáu kỉnh', 'mất kiên nhẫn', 'stress'
+    
+    # Sharing indicators (encourage openness)
+    'sharing_indicators': [
+        'chia sẻ', 'nói thật', 'thực ra', 'thường', 'luôn luôn', 'thật sự',
+        'share', 'honestly', 'actually', 'usually', 'always', 'really',
+        'to be honest', 'truthfully', 'in fact'
     ],
-    'suicide_keywords': [
-        'tự tử', 'chết', 'kết thúc cuộc đời', 'không muốn sống',
-        'tự làm hại', 'muốn biến mất', 'cuộc sống vô nghĩa', 'tự gây thương tích'
+    
+    # Vulnerability markers (indicate personal struggles)
+    'vulnerability_markers': [
+        'khó khăn', 'đau khổ', 'không biết', 'bối rối', 'hoang mang', 'tuyệt vọng',
+        'difficult', 'struggling', 'confused', 'lost', 'helpless', 'hopeless',
+        'overwhelmed', 'stuck', 'desperate', 'alone', 'isolated'
     ]
 }
 
-# Intensity modifiers for keyword classification
-INTENSITY_MODIFIERS = {
-    'high_intensity': [
-        'rất', 'cực kỳ', 'quá', 'vô cùng', 'luôn luôn', 'liên tục',
-        'không thể chịu đựng', 'kinh khủng', 'tệ hại', 'khủng khiếp'
+# Severity Level Mapping
+SEVERITY_LEVELS = {
+    'minimal': {'range': (0.0, 0.3), 'description': 'Mức độ tối thiểu', 'color': 'green'},
+    'mild': {'range': (0.3, 0.5), 'description': 'Mức độ nhẹ', 'color': 'yellow'},
+    'moderate': {'range': (0.5, 0.7), 'description': 'Mức độ trung bình', 'color': 'orange'},
+    'severe': {'range': (0.7, 0.9), 'description': 'Mức độ nghiêm trọng', 'color': 'red'},
+    'critical': {'range': (0.9, 1.0), 'description': 'Mức độ cực kỳ nghiêm trọng', 'color': 'darkred'}
+}
+
+# AI Analysis Response Templates
+AI_ANALYSIS_TEMPLATES = {
+    'system_prompt': """Bạn là chuyên gia tâm lý, hãy phân tích tin nhắn để phân biệt giữa cảm xúc bình thường và dấu hiệu bệnh lý.
+
+HƯỚNG DẪN PHÂN LOẠI:
+- normal_worry: Lo lắng về việc cụ thể (thi cử, công việc, tương lai)
+- normal_sadness: Buồn do sự kiện cụ thể (chia tay, thất bại)
+- situational_stress: Stress có nguyên nhân rõ ràng và tạm thời
+- clinical_anxiety: Lo âu không có lý do rõ ràng, kéo dài, ảnh hưởng cuộc sống
+- depression_signs: Buồn chán kéo dài, mất hứng thú, cảm giác vô vọng
+- chronic_stress: Stress kéo dài nhiều tuần/tháng
+- suicide_risk: Có ý định tự hại bản thân
+
+SEVERITY SCORE:
+- 0.0-0.3: Cảm xúc bình thường, tạm thời
+- 0.4-0.6: Cần quan tâm, theo dõi
+- 0.7-0.9: Có dấu hiệu bệnh lý, cần đánh giá
+- 0.9-1.0: Nguy hiểm, cần can thiệp ngay""",
+
+    'response_format': """{
+    "severity": [số từ 0.0 đến 1.0],
+    "type": "[một trong các loại đã định nghĩa]",
+    "reasoning": "[giải thích ngắn gọn]",
+    "confidence": [số từ 0.0 đến 1.0]
+}"""
+}
+
+# Follow-up Question Templates
+FOLLOWUP_TEMPLATES = {
+    'normal_worry': [
+        "Bạn có thể chia sẻ cụ thể hơn về điều gì đang khiến bạn lo lắng không?",
+        "Điều này đã ảnh hưởng đến cuộc sống hàng ngày của bạn như thế nào?",
+        "Bạn đã thử cách nào để giải quyết vấn đề này chưa?"
     ],
-    'moderate_intensity': [
-        'khá', 'thường xuyên', 'nhiều lần', 'đáng kể', 'có phần',
-        'tương đối', 'đôi lúc', 'thỉnh thoảng'
+    'normal_sadness': [
+        "Cảm giác buồn này có kéo dài từ lúc nào không?",
+        "Bạn có muốn chia sẻ về nguyên nhân khiến bạn cảm thấy buồn?",
+        "Bạn có làm được những việc bình thường như trước đây không?"
     ],
-    'low_intensity': [
-        'hơi', 'đôi khi', 'thỉnh thoảng', 'ít khi', 'nhẹ',
-        'một chút', 'không nhiều'
+    'situational_stress': [
+        "Tình huống này đã diễn ra trong bao lâu rồi?",
+        "Bạn cảm thấy stress này ảnh hưởng đến giấc ngủ hay ăn uống không?",
+        "Có ai bạn có thể tâm sự về vấn đề này không?"
+    ],
+    'clinical_anxiety': [
+        "Cảm giác lo âu này có xuất hiện khi không có lý do rõ ràng không?",
+        "Bạn có gặp các triệu chứng như tim đập nhanh, khó thở không?",
+        "Điều này có làm bạn tránh né các hoạt động bình thường không?"
+    ],
+    'depression_signs': [
+        "Bạn có mất hứng thú với những việc từng thích làm không?",
+        "Giấc ngủ và cảm giác năng lượng của bạn có thay đổi không?",
+        "Bạn có cảm thấy tuyệt vọng về tương lai không?"
+    ],
+    'chronic_stress': [
+        "Tình trạng này đã kéo dài bao lâu rồi?",
+        "Bạn có thấy khó khăn trong việc thư giãn hay nghỉ ngơi không?",
+        "Stress này có ảnh hưởng đến công việc hay học tập không?"
+    ],
+    'suicide_risk': [
+        "Tôi quan tâm đến sự an toàn của bạn. Bạn có suy nghĩ về việc tự hại bản thân không?",
+        "Bạn có cần tôi hỗ trợ tìm kiếm sự giúp đỡ chuyên nghiệp không?",
+        "Có ai mà bạn tin tưởng có thể nói chuyện ngay bây giờ không?"
     ]
 }
 
-# Emergency contact information (Vietnam)
-EMERGENCY_CONTACTS = {
-    'suicide_prevention': '1800-0011',
-    'mental_health_hotline': '1900-6048',
-    'emergency_services': '113',
-    'tâm_lý_hotline': '1800-1060'
+# Transition Messages
+TRANSITION_MESSAGES = {
+    'default': "Cảm ơn bạn đã tin tưởng chia sẻ. Để hiểu rõ hơn tình trạng của bạn, tôi muốn đặt một số câu hỏi cụ thể. Bạn có sẵn sàng không?",
+    'high_severity': "Tôi thấy bạn đang trải qua những khó khăn đáng kể. Để hỗ trợ bạn tốt hơn, tôi muốn đặt một số câu hỏi đánh giá. Bạn có đồng ý không?",
+    'suicide_risk': "Tôi quan tâm đến sự an toàn của bạn. Để đánh giá tốt hơn tình trạng của bạn, tôi muốn hỏi một số câu hỏi quan trọng. Bạn có sẵn sàng không?",
+    'clinical_signs': "Dựa trên những gì bạn chia sẻ, tôi nghĩ việc đánh giá chi tiết hơn sẽ hữu ích. Bạn có thể trả lời một số câu hỏi để tôi hiểu rõ hơn không?"
 }
 
-# Resource URLs (Vietnam)
-RESOURCE_URLS = {
-    'mental_health_foundation': 'https://tamly.vn',
-    'government_health': 'https://moh.gov.vn',
-    'crisis_support': 'https://tamlinh.org',
-    'vietnam_psychology': 'https://hoisinhhocvietnam.org.vn'
+# Error Messages
+ERROR_MESSAGES = {
+    'ai_analysis_failed': 'Không thể phân tích tin nhắn bằng AI. Sử dụng phương pháp dự phòng.',
+    'conversation_analysis_failed': 'Lỗi trong việc phân tích cuộc trò chuyện.',
+    'transition_decision_failed': 'Lỗi trong việc quyết định chuyển đổi.',
+    'followup_generation_failed': 'Không thể tạo câu hỏi theo dõi.',
+    'context_analysis_timeout': 'Phân tích ngữ cảnh bị timeout.',
+    'invalid_ai_response': 'Phản hồi từ AI không hợp lệ.',
+    'api_rate_limit': 'Đã đạt giới hạn số lượng yêu cầu API.',
+    'network_error': 'Lỗi kết nối mạng khi gọi API.',
+    'parsing_error': 'Lỗi phân tích dữ liệu phản hồi.'
 }
 
-# Validation patterns
+# Success Messages
+SUCCESS_MESSAGES = {
+    'ai_analysis_completed': 'Phân tích AI hoàn thành thành công',
+    'transition_decision_made': 'Quyết định chuyển đổi đã được đưa ra',
+    'conversation_analyzed': 'Cuộc trò chuyện đã được phân tích',
+    'followup_generated': 'Câu hỏi theo dõi đã được tạo',
+    'context_understood': 'Ngữ cảnh đã được hiểu'
+}
+
+# Validation Patterns
 VALIDATION_PATTERNS = {
-    'session_id': r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
-    'assessment_score': r'^[0-4]$'
+    'severity_score': r'^(0(\.[0-9])?|1(\.0)?)$',  # 0.0 to 1.0
+    'confidence_score': r'^(0(\.[0-9])?|1(\.0)?)$',  # 0.0 to 1.0
+    'context_type': r'^(normal_worry|normal_sadness|situational_stress|clinical_anxiety|depression_signs|chronic_stress|suicide_risk)$',
+    'assessment_type': r'^(phq9|gad7|dass21_stress|suicide_risk|initial_screening)$'
 }
 
-# Default configuration values
-DEFAULT_CONFIG = {
-    'max_conversation_length': 12,
-    'min_messages_before_transition': 6,
-    'transition_check_interval': 3,
-    'ai_max_tokens': 1000,
-    'ai_temperature': 0.7,
-    'session_timeout_minutes': 30
+# Default Values
+DEFAULT_VALUES = {
+    'ai_severity': 0.0,
+    'depth_score': 0.0,
+    'duration_score': 0.0,
+    'confidence': 0.0,
+    'context_type': 'normal_worry',
+    'assessment_type': 'phq9',
+    'followup_needed': True,
+    'transition_threshold': 0.65
 }
 
-# Assessment question limits
-ASSESSMENT_LIMITS = {
-    'phq9': {'min_questions': 9, 'max_questions': 9},
-    'gad7': {'min_questions': 7, 'max_questions': 7},
-    'dass21_stress': {'min_questions': 7, 'max_questions': 7},
-    'suicide_risk': {'min_questions': 3, 'max_questions': 5},
-    'initial': {'min_questions': 5, 'max_questions': 10}
-}
-
-# Vietnamese severity level labels
-SEVERITY_LABELS = {
-    'minimal': 'Tối thiểu',
-    'mild': 'Nhẹ',
-    'moderate': 'Trung bình',
-    'moderately_severe': 'Trung bình nặng',
-    'severe': 'Nặng',
-    'extremely_severe': 'Cực kỳ nặng',
-    'normal': 'Bình thường'
-}
-
-# Vietnamese risk level labels
-RISK_LABELS = {
-    'minimal': 'Tối thiểu',
-    'low': 'Thấp',
-    'moderate': 'Trung bình',
-    'high': 'Cao'
-}
+# Export all constants
+__all__ = [
+    'ASSESSMENT_TYPES', 'SUPPORTED_LANGUAGES', 'CHAT_STATES', 'RESPONSE_TYPES', 'EXPORT_FORMATS',
+    'EMOTIONAL_CONTEXT_TYPES', 'CONTEXT_TYPE_DESCRIPTIONS', 'CONTEXT_TO_ASSESSMENT_MAPPING',
+    'TEMPORAL_INDICATORS', 'DEPTH_INDICATORS', 'SEVERITY_LEVELS', 'AI_ANALYSIS_TEMPLATES',
+    'FOLLOWUP_TEMPLATES', 'TRANSITION_MESSAGES', 'ERROR_MESSAGES', 'SUCCESS_MESSAGES',
+    'VALIDATION_PATTERNS', 'DEFAULT_VALUES'
+]

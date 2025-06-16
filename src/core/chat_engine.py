@@ -1,225 +1,37 @@
 """
-Chat Engine - Core conversation management with improved transition logic
-Solves the main issue of unreliable chat-to-poll transitions
+Chat Engine - SỬA ĐỔI để tích hợp transition logic mới
+Updated to use AI-powered transition logic
 """
 
 import logging
-import json
-import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from ..services.together_ai import generate_chat_completion, extract_text_from_response
-from .ai_classifier import AIClassifier
-from .assessment_engine import AssessmentEngine
-from ..utils.validators import validate_message, validate_chat_state
-from ..utils.constants import ChatStates, AssessmentTypes
-from config import Config
+from src.services.together_client import get_together_client
+from src.core.transition_logic import TransitionManager
+from src.services.ai_context_analyzer import classify_emotional_context
 
 logger = logging.getLogger(__name__)
 
-class TransitionManager:
-    """Manages transitions from chat to assessment"""
-    
-    def __init__(self):
-        self.classifier = AIClassifier()
-        self.assessment_engine = AssessmentEngine()
-        self.thresholds = getattr(Config, 'TRANSITION_THRESHOLDS', {
-            'depression_score': 0.6,
-            'anxiety_score': 0.6,
-            'stress_score': 0.6,
-            'suicide_risk_score': 0.3
-        })
-        
-        # Keywords for category scoring
-        self.category_keywords = {
-            'depression': [
-                'buồn', 'chán nản', 'tuyệt vọng', 'không vui', 'trầm cảm', 
-                'mệt mỏi', 'không muốn', 'thất vọng', 'cô đơn', 'trống rỗng',
-                'sad', 'depressed', 'hopeless', 'empty', 'tired', 'worthless'
-            ],
-            'anxiety': [
-                'lo lắng', 'căng thẳng', 'bồn chồn', 'sợ hãi', 'hoảng loạn',
-                'tim đập nhanh', 'khó thở', 'run rẩy', 'không yên', 'lo âu',
-                'anxious', 'worried', 'nervous', 'panic', 'restless', 'scared'
-            ],
-            'stress': [
-                'stress', 'áp lực', 'quá tải', 'kiệt sức', 'không thể chịu đựng',
-                'overwhelmed', 'pressure', 'exhausted', 'burned out', 'overloaded'
-            ],
-            'suicide_risk': [
-                'chết', 'tự tử', 'kết thúc', 'không muốn sống', 'biến mất',
-                'làm hại bản thân', 'suicide', 'kill myself', 'end it all', 
-                'don\'t want to live', 'hurt myself', 'die'
-            ]
-        }
-    
-    def should_transition(self, history: List[Dict], state: Dict) -> Tuple[bool, Optional[str], str]:
-        """
-        Determine if conversation should transition to assessment
-        
-        Args:
-            history: Conversation history
-            state: Current chat state
-            
-        Returns:
-            (should_transition, assessment_type, reason)
-        """
-        message_count = len(history)
-        
-        # Rule 1: Force transition after max messages
-        if message_count >= Config.MAX_CONVERSATION_LENGTH:
-            assessment_type = self._select_best_assessment(state.get('scores', {}))
-            return True, assessment_type, "max_messages_reached"
-        
-        # Rule 2: Check for suicide risk (immediate transition)
-        if self._has_suicide_risk(history, state):
-            return True, AssessmentTypes.SUICIDE_RISK, "suicide_risk_detected"
-        
-        # Rule 3: Periodic evaluation after minimum messages
-        if (message_count >= Config.MIN_MESSAGES_BEFORE_TRANSITION and 
-            message_count % Config.TRANSITION_CHECK_INTERVAL == 0):
-            
-            category_scores = self._calculate_category_scores(history, state)
-            state['scores'] = category_scores
-            
-            # Check if any category score exceeds threshold
-            for category, score in category_scores.items():
-                threshold = self.thresholds.get(f"{category}_score", 0.6)
-                if score >= threshold:
-                    assessment_type = self._map_category_to_assessment(category)
-                    return True, assessment_type, f"high_{category}_score"
-        
-        return False, None, "continue_chat"
-    
-    def _calculate_category_scores(self, history: List[Dict], state: Dict) -> Dict[str, float]:
-        """
-        Calculate emotional category scores based on conversation content
-        
-        Args:
-            history: Conversation history
-            state: Current chat state
-            
-        Returns:
-            Dictionary of category scores (0.0 to 1.0)
-        """
-        # Combine all user messages
-        user_messages = [msg['content'].lower() for msg in history if msg.get('role') == 'user']
-        all_text = ' '.join(user_messages)
-        
-        scores = {}
-        
-        for category, keywords in self.category_keywords.items():
-            score = 0.0
-            total_keywords = len(keywords)
-            
-            # Count keyword matches
-            matched_keywords = 0
-            for keyword in keywords:
-                if keyword.lower() in all_text:
-                    matched_keywords += 1
-            
-            # Base score from keyword frequency
-            if total_keywords > 0:
-                score = matched_keywords / total_keywords
-            
-            # Apply message frequency weighting
-            message_weight = min(len(user_messages) / Config.MIN_MESSAGES_BEFORE_TRANSITION, 1.0)
-            score *= message_weight
-            
-            # Apply intensity multiplier for repeated mentions
-            intensity_multiplier = self._calculate_intensity_multiplier(all_text, keywords)
-            score *= intensity_multiplier
-            
-            # Ensure score is between 0 and 1
-            scores[category] = min(max(score, 0.0), 1.0)
-        
-        # Store additional metadata
-        scores['_metadata'] = {
-            'message_count': len(user_messages),
-            'total_words': len(all_text.split()),
-            'analysis_timestamp': datetime.now().isoformat()
-        }
-        
-        return scores
-    
-    def _calculate_intensity_multiplier(self, text: str, keywords: List[str]) -> float:
-        """Calculate intensity multiplier based on keyword repetition and context"""
-        total_mentions = 0
-        for keyword in keywords:
-            total_mentions += text.count(keyword.lower())
-        
-        # More mentions = higher intensity (capped at 2.0)
-        if total_mentions == 0:
-            return 0.0
-        elif total_mentions == 1:
-            return 1.0
-        elif total_mentions <= 3:
-            return 1.3
-        elif total_mentions <= 5:
-            return 1.6
-        else:
-            return 2.0
-    
-    def _has_suicide_risk(self, history: List[Dict], state: Dict) -> bool:
-        """Check for immediate suicide risk indicators"""
-        user_messages = [msg['content'].lower() for msg in history if msg.get('role') == 'user']
-        all_text = ' '.join(user_messages)
-        
-        high_risk_keywords = [
-            'tự tử', 'chết', 'kết thúc cuộc đời', 'không muốn sống nữa',
-            'suicide', 'kill myself', 'end my life', 'want to die'
-        ]
-        
-        for keyword in high_risk_keywords:
-            if keyword in all_text:
-                return True
-        
-        return False
-    
-    def _select_best_assessment(self, scores: Dict) -> str:
-        """Select the most appropriate assessment based on scores"""
-        if not scores:
-            return AssessmentTypes.PHQ9  # Default to depression screening
-        
-        # Remove metadata if present
-        clean_scores = {k: v for k, v in scores.items() if not k.startswith('_')}
-        
-        if not clean_scores:
-            return AssessmentTypes.PHQ9
-        
-        # Find highest scoring category
-        max_category = max(clean_scores, key=clean_scores.get)
-        return self._map_category_to_assessment(max_category)
-    
-    def _map_category_to_assessment(self, category: str) -> str:
-        """Map emotional category to appropriate assessment type"""
-        mapping = {
-            'depression': AssessmentTypes.PHQ9,
-            'anxiety': AssessmentTypes.GAD7,
-            'stress': AssessmentTypes.DASS21_STRESS,
-            'suicide_risk': AssessmentTypes.SUICIDE_RISK
-        }
-        return mapping.get(category, AssessmentTypes.PHQ9)
-
-
 class ChatEngine:
-    """Enhanced chat engine with improved AI integration and transition logic"""
+    """Main chat engine với AI-powered transition logic"""
     
     def __init__(self):
+        self.client = get_together_client()
         self.transition_manager = TransitionManager()
-        self.assessment_engine = AssessmentEngine()
         
-        # Fallback responses for when AI is unavailable
-        self.fallback_responses = {
-            'welcome': "Xin chào! Tôi ở đây để lắng nghe và hỗ trợ bạn. Hãy chia sẻ với tôi cảm giác của bạn gần đây.",
+        # Template responses
+        self.templates = {
+            'greeting': "Xin chào! Tôi ở đây để lắng nghe và hỗ trợ bạn. Hãy chia sẻ với tôi cảm giác của bạn gần đây.",
             'encouragement': "Cảm ơn bạn đã chia sẻ. Bạn có thể kể thêm về điều gì khiến bạn cảm thấy như vậy không?",
             'understanding': "Tôi hiểu. Điều này nghe có vẻ khó khăn với bạn. Bạn có muốn nói thêm về cảm giác này không?",
-            'transition': "Cảm ơn bạn đã tin tường chia sẻ. Để hiểu rõ hơn tình trạng của bạn, tôi muốn đặt một số câu hỏi cụ thể. Bạn có sẵn sàng không?"
+            'transition': "Cảm ơn bạn đã tin tưởng chia sẻ. Để hiểu rõ hơn tình trạng của bạn, tôi muốn đặt một số câu hỏi cụ thể. Bạn có sẵn sàng không?"
         }
     
     def process_message(self, message: str, history: List[Dict], state: Dict, use_ai: bool = True) -> Dict:
         """
+        THAY ĐỔI: Sử dụng transition logic mới
+        
         Process user message and generate appropriate response
         
         Args:
@@ -239,17 +51,30 @@ class ChatEngine:
             # Add user message to history
             updated_history = history + [{'role': 'user', 'content': message}]
             
-            # Check if we should transition to assessment
+            # NEW: Check if we should use AI analysis
+            should_use_ai = self.should_use_ai_analysis(state['message_count'], state)
+            
+            # NEW: AI context analysis for response generation
+            ai_context = None
+            if should_use_ai and use_ai:
+                try:
+                    ai_context = classify_emotional_context(message, updated_history)
+                    state['last_ai_analysis'] = ai_context
+                    state['last_ai_analysis_time'] = datetime.now().isoformat()
+                except Exception as e:
+                    logger.warning(f"AI context analysis failed: {e}")
+            
+            # THAY ĐỔI: Sử dụng transition logic mới
             should_transition, assessment_type, reason = self.transition_manager.should_transition(
                 updated_history, state
             )
             
             if should_transition:
-                return self._handle_transition(assessment_type, reason, state, updated_history)
+                return self._handle_transition(assessment_type, reason, state, updated_history, ai_context)
             
             # Generate chat response
             if use_ai:
-                bot_response = self._generate_ai_response(message, updated_history, state)
+                bot_response = self._generate_ai_response(message, updated_history, state, ai_context)
             else:
                 bot_response = self._generate_fallback_response(message, updated_history, state)
             
@@ -264,119 +89,177 @@ class ChatEngine:
                     'type': 'chat_response',
                     'phase': 'chat',
                     'ai_used': use_ai,
+                    'ai_context_available': ai_context is not None,
                     'message_count': state['message_count'],
-                    'scores': state.get('scores', {})
+                    'transition_checked': True,
+                    'ai_severity': ai_context.get('severity', 0.0) if ai_context else 0.0
                 }
             }
             
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             return self._generate_error_response(history, state)
-    
-    def _generate_ai_response(self, message: str, history: List[Dict], state: Dict) -> str:
-        """Generate response using AI"""
+
+    def should_use_ai_analysis(self, message_count: int, state: Dict) -> bool:
+        """
+        THÊM MỚI: Quyết định khi nào dùng AI analysis
+        
+        Params:
+            - message_count: Số tin nhắn trong conversation
+            - state: Current state
+        
+        Return: True nếu nên dùng AI
+        """
+        # Dùng AI sau message thứ 3 (tránh overuse)
+        if message_count < 3:
+            return False
+        
+        # Skip nếu đã có recent analysis (trong vòng 2 messages)
+        last_analysis_time = state.get('last_ai_analysis_time')
+        if last_analysis_time:
+            try:
+                from datetime import datetime, timedelta
+                last_time = datetime.fromisoformat(last_analysis_time)
+                if datetime.now() - last_time < timedelta(minutes=1):
+                    return False
+            except:
+                pass  # Ignore parsing errors
+        
+        # Always use nếu detect potential clinical signs trong state
+        if state.get('potential_clinical_signs', False):
+            return True
+        
+        # Use mỗi 2-3 messages
+        return message_count % 2 == 0
+
+    def _generate_ai_response(self, message: str, history: List[Dict], state: Dict, ai_context: Optional[Dict] = None) -> str:
+        """
+        THAY ĐỔI: Tích hợp AI context analysis
+        Generate response using AI with context awareness
+        """
         try:
             # Create context-aware system prompt
-            system_prompt = self._create_system_prompt(state)
+            system_prompt = self._create_system_prompt(state, ai_context)
             
-            # Prepare messages for AI
-            ai_messages = [{'role': 'system', 'content': system_prompt}]
-            
-            # Add relevant conversation history (last 6 messages to stay within context limits)
+            # Prepare conversation context (last 6 messages)
             recent_history = history[-6:] if len(history) > 6 else history
-            ai_messages.extend(recent_history)
+            
+            # Convert to API format
+            messages = [{"role": "system", "content": system_prompt}]
+            
+            for msg in recent_history:
+                role = "user" if msg['role'] == 'user' else "assistant"
+                messages.append({"role": role, "content": msg['content']})
             
             # Generate response
-            response = generate_chat_completion(
-                messages=ai_messages,
-                max_tokens=150,
+            response = self.client.chat.completions.create(
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+                messages=messages,
+                max_tokens=200,
                 temperature=0.7
             )
             
-            if response:
-                return extract_text_from_response(response)
-            else:
-                return self._generate_fallback_response(message, history, state)
-                
+            ai_response = response.choices[0].message.content.strip()
+            
+            # NEW: Add follow-up question if needed
+            if ai_context and ai_context.get('needs_followup', False):
+                followup = self.transition_manager.generate_followup_question(history)
+                if followup and followup not in ai_response:
+                    ai_response += f" {followup}"
+            
+            return ai_response
+            
         except Exception as e:
-            logger.error(f"AI response generation failed: {e}")
+            logger.error(f"Error generating AI response: {e}")
             return self._generate_fallback_response(message, history, state)
-    
-    def _create_system_prompt(self, state: Dict) -> str:
-        """Create context-aware system prompt for AI"""
-        base_prompt = """Bạn là một trợ lý sức khỏe tâm thần chuyên nghiệp và đầy empathy. 
-Hãy:
-- Lắng nghe một cách chân thành và không phán xét
+
+    def _create_system_prompt(self, state: Dict, ai_context: Optional[Dict] = None) -> str:
+        """Create context-aware system prompt"""
+        base_prompt = """Bạn là một chatbot hỗ trợ sức khỏe tâm thần, luôn thể hiện sự đồng cảm và chuyên nghiệp.
+
+NHIỆM VỤ:
+- Lắng nghe và thấu hiểu người dùng
 - Đặt câu hỏi mở để khuyến khích chia sẻ
-- Thể hiện sự đồng cảm và hiểu biết
-- Giữ câu trả lời ngắn gọn (1-2 câu)
 - Không đưa ra chẩn đoán y tế
-- Tập trung vào cảm xúc và trải nghiệm của người dùng"""
-        
-        # Add context based on current scores
-        scores = state.get('scores', {})
-        if scores:
-            context = "\nDựa trên cuộc trò chuyện, có vẻ người dùng đang trải qua:"
-            for category, score in scores.items():
-                if not category.startswith('_') and score > 0.4:
-                    context += f"\n- {category}: mức độ {score:.1f}"
-            base_prompt += context
+- Hướng dẫn tìm kiếm hỗ trợ chuyên nghiệp khi cần
+
+PHONG CÁCH:
+- Ấm áp, thấu hiểu, không phán xét
+- Sử dụng ngôn ngữ đơn giản, dễ hiểu
+- Tránh thuật ngữ y tế phức tạp
+- Độ dài phản hồi: 2-3 câu"""
+
+        # Add AI context if available
+        if ai_context:
+            severity = ai_context.get('severity', 0.0)
+            context_type = ai_context.get('type', 'normal_worry')
+            
+            if severity > 0.6:
+                base_prompt += f"\n\nNGỮ CẢNH: Người dùng đang có dấu hiệu {context_type} mức độ nghiêm trọng. Hãy thể hiện sự quan tâm đặc biệt và khuyến khích chia sẻ thêm."
+            elif severity > 0.3:
+                base_prompt += f"\n\nNGỮ CẢNH: Người dùng có dấu hiệu {context_type} mức độ trung bình. Hãy tỏ ra thấu hiểu và hỏi thêm thông tin."
+            else:
+                base_prompt += f"\n\nNGỮ CẢNH: Người dùng có {context_type} ở mức độ bình thường. Hãy lắng nghe và khuyến khích chia sẻ."
         
         return base_prompt
-    
-    def _generate_fallback_response(self, message: str, history: List[Dict], state: Dict) -> str:
-        """Generate fallback response when AI is unavailable"""
-        message_count = len(history)
+
+    def _handle_transition(self, assessment_type: str, reason: str, state: Dict, history: List[Dict], ai_context: Optional[Dict] = None) -> Dict:
+        """Handle transition to assessment phase"""
         
-        if message_count <= 1:
-            return self.fallback_responses['welcome']
-        elif message_count <= 3:
-            return self.fallback_responses['encouragement']
-        elif message_count <= 6:
-            return self.fallback_responses['understanding']
-        else:
-            return self.fallback_responses['transition']
-    
-    def _handle_transition(self, assessment_type: str, reason: str, state: Dict, history: List[Dict]) -> Dict:
-        """Handle transition from chat to assessment"""
+        # Update state for transition
         state['current_phase'] = 'assessment'
         state['assessment_type'] = assessment_type
         state['transition_reason'] = reason
+        state['transition_time'] = datetime.now().isoformat()
         
-        transition_message = self._generate_transition_message(assessment_type, reason)
+        # Create transition message
+        transition_message = self.templates['transition']
         
-        # Start assessment
-        assessment_data = self.assessment_engine.start_assessment(assessment_type, state)
+        # Add context-specific message if AI analysis available
+        if ai_context:
+            severity = ai_context.get('severity', 0.0)
+            if severity > 0.7:
+                transition_message = "Tôi thấy bạn đang trải qua những khó khăn đáng kể. " + transition_message
+            elif ai_context.get('type') == 'suicide_risk':
+                transition_message = "Tôi quan tâm đến sự an toàn của bạn. " + transition_message
+        
+        # Add bot response to history
+        final_history = history + [{'role': 'bot', 'content': transition_message}]
         
         return {
             'message': transition_message,
-            'history': history + [{'role': 'bot', 'content': transition_message}],
+            'history': final_history,
             'state': state,
-            'assessment': assessment_data,
             'metadata': {
                 'type': 'transition',
-                'phase': 'transition',
+                'phase': 'assessment',
                 'assessment_type': assessment_type,
                 'reason': reason,
-                'should_show_poll': True
+                'ai_severity': ai_context.get('severity', 0.0) if ai_context else 0.0,
+                'transition_time': state['transition_time']
             }
         }
-    
-    def _generate_transition_message(self, assessment_type: str, reason: str) -> str:
-        """Generate appropriate transition message"""
-        messages = {
-            AssessmentTypes.PHQ9: "Cảm ơn bạn đã chia sẻ. Để hiểu rõ hơn về tâm trạng của bạn, tôi muốn đặt một số câu hỏi về trầm cảm.",
-            AssessmentTypes.GAD7: "Tôi nhận thấy bạn có vẻ đang lo lắng. Hãy cùng đánh giá mức độ lo âu qua một số câu hỏi.",
-            AssessmentTypes.DASS21_STRESS: "Có vẻ bạn đang trải qua căng thẳng. Tôi muốn đánh giá mức độ stress của bạn.",
-            AssessmentTypes.SUICIDE_RISK: "Tôi quan tâm đến sự an toàn của bạn. Hãy để tôi đặt một số câu hỏi quan trọng."
-        }
+
+    def _generate_fallback_response(self, message: str, history: List[Dict], state: Dict) -> str:
+        """Generate fallback response when AI is not available"""
         
-        return messages.get(assessment_type, 
-            "Cảm ơn bạn đã chia sẻ. Bây giờ tôi muốn đánh giá chi tiết hơn qua một số câu hỏi cụ thể.")
-    
+        message_count = len([msg for msg in history if msg.get('role') == 'user'])
+        
+        # Simple rule-based responses
+        message_lower = message.lower()
+        
+        if message_count == 1:
+            return self.templates['greeting']
+        elif any(word in message_lower for word in ['cảm ơn', 'thank']):
+            return "Tôi luôn sẵn sàng lắng nghe bạn. Bạn còn muốn chia sẻ điều gì khác không?"
+        elif any(word in message_lower for word in ['buồn', 'sad', 'khó khăn']):
+            return self.templates['understanding']
+        else:
+            return self.templates['encouragement']
+
     def _generate_error_response(self, history: List[Dict], state: Dict) -> Dict:
-        """Generate error response when something goes wrong"""
-        error_message = "Xin lỗi, tôi gặp chút khó khăn. Bạn có thể thử lại không?"
+        """Generate error response"""
+        error_message = "Xin lỗi, có lỗi xảy ra. Bạn có thể thử lại không?"
         
         return {
             'message': error_message,
@@ -384,29 +267,35 @@ Hãy:
             'state': state,
             'metadata': {
                 'type': 'error',
-                'phase': 'chat'
+                'phase': state.get('current_phase', 'chat'),
+                'ai_used': False
             }
         }
-    
-    def reset_conversation(self, state: Dict) -> Dict:
-        """Reset conversation to initial state"""
-        new_state = {
-            'session_id': state.get('session_id'),
-            'current_phase': 'chat',
-            'language': state.get('language', 'vi'),
-            'message_count': 0,
-            'scores': {},
-            'started_at': datetime.now().isoformat()
-        }
+
+    def get_conversation_summary(self, history: List[Dict]) -> Dict:
+        """Get summary of conversation for debugging/monitoring"""
         
-        welcome_message = self.fallback_responses['welcome']
+        user_messages = [msg for msg in history if msg.get('role') == 'user']
+        if not user_messages:
+            return {'message_count': 0, 'summary': 'No user messages'}
+        
+        # Get last AI analysis if available
+        try:
+            last_message = user_messages[-1]['content']
+            ai_analysis = classify_emotional_context(last_message, history)
+        except:
+            ai_analysis = {'severity': 0.0, 'type': 'unknown', 'confidence': 0.0}
         
         return {
-            'message': welcome_message,
-            'history': [{'role': 'bot', 'content': welcome_message}],
-            'state': new_state,
-            'metadata': {
-                'type': 'reset',
-                'phase': 'chat'
-            }
+            'message_count': len(user_messages),
+            'avg_message_length': sum(len(msg['content']) for msg in user_messages) / len(user_messages),
+            'ai_severity': ai_analysis.get('severity', 0.0),
+            'ai_type': ai_analysis.get('type', 'unknown'),
+            'ai_confidence': ai_analysis.get('confidence', 0.0),
+            'summary': f"Conversation with {len(user_messages)} messages, AI detected {ai_analysis.get('type', 'unknown')}"
         }
+
+# Factory function
+def create_chat_engine() -> ChatEngine:
+    """Create and return a configured ChatEngine instance"""
+    return ChatEngine()

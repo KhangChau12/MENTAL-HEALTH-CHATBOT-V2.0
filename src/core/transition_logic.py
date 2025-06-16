@@ -1,652 +1,644 @@
 """
-Transition Logic - Advanced system for determining when to transition from chat to assessment
-Fixes the main issue of unreliable chat-to-poll transitions
+Transition Logic - AI-Powered Context Analysis + Simplified Factors
+THAY ĐỔI HOÀN TOÀN: Sử dụng AI thay vì keyword matching
 """
 
 import logging
-import re
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
 from datetime import datetime
-from dataclasses import dataclass
+
+from src.services.ai_context_analyzer import classify_emotional_context
+from src.core.conversation_analyzer import ConversationAnalyzer
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class TransitionResult:
-    """Result of transition analysis"""
-    should_transition: bool
-    assessment_type: str
-    confidence: float
-    reason: str
-    triggered_rules: List[str]
-    emotional_indicators: Dict[str, float]
-
-class EmotionalIndicatorAnalyzer:
-    """Analyzes text for emotional indicators and mental health signals"""
-    
-    def __init__(self):
-        self.emotion_patterns = {
-            'depression': {
-                'keywords': [
-                    'buồn', 'chán nản', 'tuyệt vọng', 'không vui', 'trầm cảm', 
-                    'mệt mỏi', 'không muốn', 'thất vọng', 'cô đơn', 'trống rỗng',
-                    'không ý nghĩa', 'vô dụng', 'thất bại', 'tội lỗi',
-                    'sad', 'depressed', 'hopeless', 'empty', 'tired', 'worthless',
-                    'meaningless', 'useless', 'failure', 'guilty'
-                ],
-                'phrases': [
-                    'không còn hy vọng', 'cuộc sống vô nghĩa', 'tôi là gánh nặng',
-                    'không ai quan tâm', 'tôi không xứng đáng', 'mọi thứ đều tồi tệ',
-                    'no hope left', 'life is meaningless', 'i am a burden',
-                    'nobody cares', 'i don\'t deserve', 'everything is terrible'
-                ],
-                'intensity_multipliers': {
-                    'rất': 1.5, 'cực kỳ': 2.0, 'hoàn toàn': 1.8,
-                    'very': 1.5, 'extremely': 2.0, 'completely': 1.8
-                }
-            },
-            
-            'anxiety': {
-                'keywords': [
-                    'lo lắng', 'căng thẳng', 'bồn chồn', 'sợ hãi', 'hoảng loạn',
-                    'tim đập nhanh', 'khó thở', 'run rẩy', 'không yên', 'lo âu',
-                    'nervous', 'anxious', 'worried', 'panic', 'restless', 'scared',
-                    'heart racing', 'breathless', 'shaking', 'uneasy'
-                ],
-                'phrases': [
-                    'không thể ngừng suy nghĩ', 'luôn lo lắng', 'sợ điều tồi tệ',
-                    'tim đập như trống', 'thở không ra hơi', 'tay chân run rẩy',
-                    'can\'t stop thinking', 'always worried', 'fear the worst',
-                    'heart pounds', 'can\'t breathe', 'hands shaking'
-                ],
-                'intensity_multipliers': {
-                    'liên tục': 1.8, 'không ngừng': 2.0, 'suốt ngày': 1.6,
-                    'constantly': 1.8, 'non-stop': 2.0, 'all day': 1.6
-                }
-            },
-            
-            'stress': {
-                'keywords': [
-                    'stress', 'áp lực', 'quá tải', 'kiệt sức', 'không thể chịu đựng',
-                    'burned out', 'overwhelmed', 'pressure', 'exhausted', 'overloaded',
-                    'không kéo nổi', 'sắp sụp đổ', 'quá sức', 'căng như dây đàn'
-                ],
-                'phrases': [
-                    'không thể chịu đựng thêm', 'quá nhiều việc', 'sắp bị điên',
-                    'áp lực từ mọi phía', 'không còn sức', 'sắp sụp đổ',
-                    'can\'t take anymore', 'too much work', 'going crazy',
-                    'pressure from everywhere', 'no energy left', 'about to collapse'
-                ],
-                'intensity_multipliers': {
-                    'quá': 1.6, 'cực kỳ': 2.0, 'không thể': 1.8,
-                    'too': 1.6, 'extremely': 2.0, 'can\'t': 1.8
-                }
-            },
-            
-            'suicide_risk': {
-                'keywords': [
-                    'chết', 'tự tử', 'kết thúc', 'không muốn sống', 'biến mất',
-                    'làm hại bản thân', 'tự làm hại', 'không muốn ở đây nữa',
-                    'suicide', 'kill myself', 'end it all', 'don\'t want to live',
-                    'hurt myself', 'self harm', 'don\'t want to be here'
-                ],
-                'phrases': [
-                    'muốn chết', 'không muốn sống nữa', 'kết thúc tất cả',
-                    'làm hại bản thân', 'tự tử', 'biến mất khỏi đây',
-                    'want to die', 'don\'t want to live anymore', 'end it all',
-                    'hurt myself', 'kill myself', 'disappear from here'
-                ],
-                'intensity_multipliers': {
-                    'thật sự': 2.5, 'nghiêm túc': 3.0, 'quyết tâm': 2.8,
-                    'really': 2.5, 'seriously': 3.0, 'determined': 2.8
-                }
-            }
-        }
-        
-        # Sleep and physical symptoms
-        self.physical_indicators = {
-            'sleep_issues': [
-                'không ngủ được', 'mất ngủ', 'ngủ không say', 'thức đêm',
-                'ngủ quá nhiều', 'khó ngủ', 'giấc ngủ không sâu',
-                'can\'t sleep', 'insomnia', 'sleepless', 'restless sleep',
-                'oversleeping', 'sleep too much', 'light sleep'
-            ],
-            'appetite_changes': [
-                'không muốn ăn', 'mất cảm giác đói', 'ăn quá nhiều',
-                'thay đổi khẩu vị', 'không ngon miệng',
-                'no appetite', 'don\'t want to eat', 'eating too much',
-                'taste changes', 'food doesn\'t taste good'
-            ],
-            'energy_loss': [
-                'mệt mỏi', 'kiệt sức', 'không có năng lượng', 'uể oải',
-                'lười biếng', 'không muốn làm gì', 'chán nản',
-                'tired', 'exhausted', 'no energy', 'lethargic',
-                'lazy', 'don\'t want to do anything', 'unmotivated'
-            ]
-        }
-    
-    def analyze_emotional_indicators(self, text: str) -> Dict[str, float]:
-        """
-        Analyze text for emotional indicators
-        
-        Args:
-            text: Input text to analyze
-            
-        Returns:
-            Dictionary with emotional category scores (0.0 to 1.0)
-        """
-        text_lower = text.lower()
-        results = {}
-        
-        for emotion, patterns in self.emotion_patterns.items():
-            score = self._calculate_emotion_score(text_lower, patterns)
-            results[emotion] = min(score, 1.0)  # Cap at 1.0
-        
-        # Add physical indicator scores
-        for category, keywords in self.physical_indicators.items():
-            score = self._calculate_keyword_score(text_lower, keywords)
-            results[category] = min(score, 1.0)
-        
-        return results
-    
-    def _calculate_emotion_score(self, text: str, patterns: Dict) -> float:
-        """Calculate score for a specific emotion category"""
-        score = 0.0
-        
-        # Keyword matching
-        keyword_matches = 0
-        for keyword in patterns['keywords']:
-            if keyword in text:
-                keyword_matches += 1
-        
-        # Base score from keywords
-        if patterns['keywords']:
-            keyword_score = keyword_matches / len(patterns['keywords'])
-            score += keyword_score * 0.6  # 60% weight for keywords
-        
-        # Phrase matching (higher weight)
-        phrase_matches = 0
-        for phrase in patterns['phrases']:
-            if phrase in text:
-                phrase_matches += 1
-        
-        if patterns['phrases']:
-            phrase_score = phrase_matches / len(patterns['phrases'])
-            score += phrase_score * 0.4  # 40% weight for phrases
-        
-        # Apply intensity multipliers
-        for intensity, multiplier in patterns['intensity_multipliers'].items():
-            if intensity in text:
-                score *= multiplier
-                break  # Apply only first matched intensity
-        
-        return score
-    
-    def _calculate_keyword_score(self, text: str, keywords: List[str]) -> float:
-        """Calculate score based on keyword presence"""
-        matches = sum(1 for keyword in keywords if keyword in text)
-        return matches / len(keywords) if keywords else 0.0
-
-class TransitionRuleEngine:
-    """Rule-based engine for determining when to transition"""
-    
-    def __init__(self):
-        self.emotion_analyzer = EmotionalIndicatorAnalyzer()
-        
-        # Transition thresholds
-        self.thresholds = {
-            'suicide_risk': 0.2,      # Very low threshold for safety
-            'depression': 0.4,        # Moderate threshold
-            'anxiety': 0.4,           # Moderate threshold
-            'stress': 0.5,            # Higher threshold
-            'combined_score': 0.3,    # Combined emotional distress
-            'message_count': 6,       # Minimum messages before transition
-            'max_messages': 12,       # Force transition point
-            'time_based': 300         # 5 minutes conversation time
-        }
-        
-        # Assessment type mapping
-        self.assessment_mapping = {
-            'suicide_risk': 'suicide_risk',
-            'depression': 'phq9',
-            'anxiety': 'gad7',
-            'stress': 'dass21_stress'
-        }
-    
-    def evaluate_transition(
-        self, 
-        messages: List[Dict], 
-        conversation_state: Dict
-    ) -> TransitionResult:
-        """
-        Evaluate whether conversation should transition to assessment
-        
-        Args:
-            messages: List of conversation messages
-            conversation_state: Current conversation state
-            
-        Returns:
-            TransitionResult with decision and metadata
-        """
-        # Extract user messages
-        user_messages = [msg for msg in messages if msg.get('role') == 'user']
-        combined_text = ' '.join([msg['content'] for msg in user_messages])
-        
-        # Rule evaluations
-        triggered_rules = []
-        confidence_factors = []
-        
-        # Rule 1: Message count based
-        message_count = len(user_messages)
-        if message_count >= self.thresholds['max_messages']:
-            triggered_rules.append('max_messages_reached')
-            confidence_factors.append(1.0)
-        
-        # Rule 2: Emotional analysis
-        emotional_scores = self.emotion_analyzer.analyze_emotional_indicators(combined_text)
-        
-        # Rule 3: Suicide risk check (highest priority)
-        if emotional_scores.get('suicide_risk', 0) >= self.thresholds['suicide_risk']:
-            return TransitionResult(
-                should_transition=True,
-                assessment_type='suicide_risk',
-                confidence=1.0,
-                reason='High suicide risk detected',
-                triggered_rules=['suicide_risk_detected'],
-                emotional_indicators=emotional_scores
-            )
-        
-        # Rule 4: Individual emotion thresholds
-        primary_emotion = None
-        max_emotion_score = 0
-        
-        for emotion in ['depression', 'anxiety', 'stress']:
-            score = emotional_scores.get(emotion, 0)
-            if score >= self.thresholds[emotion]:
-                triggered_rules.append(f'high_{emotion}_score')
-                confidence_factors.append(score)
-                
-                if score > max_emotion_score:
-                    max_emotion_score = score
-                    primary_emotion = emotion
-        
-        # Rule 5: Combined emotional distress
-        combined_score = self._calculate_combined_emotional_score(emotional_scores)
-        if combined_score >= self.thresholds['combined_score']:
-            triggered_rules.append('combined_emotional_distress')
-            confidence_factors.append(combined_score)
-        
-        # Rule 6: Time-based transition (if conversation is long enough)
-        conversation_duration = self._get_conversation_duration(conversation_state)
-        if (conversation_duration >= self.thresholds['time_based'] and 
-            message_count >= self.thresholds['message_count']):
-            triggered_rules.append('time_based_transition')
-            confidence_factors.append(0.6)
-        
-        # Rule 7: Progressive transition for sufficient conversation
-        if (message_count >= self.thresholds['message_count'] and 
-            combined_score >= 0.2):  # Lower threshold for longer conversations
-            triggered_rules.append('progressive_transition')
-            confidence_factors.append(0.5)
-        
-        # Decision logic
-        should_transition = len(triggered_rules) > 0
-        confidence = max(confidence_factors) if confidence_factors else 0.0
-        
-        # Determine assessment type
-        assessment_type = self._determine_assessment_type(
-            primary_emotion, emotional_scores, triggered_rules
-        )
-        
-        # Generate reason
-        reason = self._generate_transition_reason(triggered_rules, primary_emotion)
-        
-        return TransitionResult(
-            should_transition=should_transition,
-            assessment_type=assessment_type,
-            confidence=confidence,
-            reason=reason,
-            triggered_rules=triggered_rules,
-            emotional_indicators=emotional_scores
-        )
-    
-    def _calculate_combined_emotional_score(self, emotional_scores: Dict[str, float]) -> float:
-        """Calculate combined emotional distress score"""
-        primary_emotions = ['depression', 'anxiety', 'stress']
-        primary_scores = [emotional_scores.get(emotion, 0) for emotion in primary_emotions]
-        
-        # Weighted average with emphasis on highest scores
-        if not primary_scores:
-            return 0.0
-        
-        # Sort scores in descending order
-        sorted_scores = sorted(primary_scores, reverse=True)
-        
-        # Weighted calculation: highest score gets more weight
-        weights = [0.5, 0.3, 0.2]  # Weights for top 3 scores
-        weighted_sum = sum(score * weight for score, weight in zip(sorted_scores, weights))
-        
-        # Add physical symptoms bonus
-        physical_bonus = 0
-        physical_categories = ['sleep_issues', 'appetite_changes', 'energy_loss']
-        for category in physical_categories:
-            if emotional_scores.get(category, 0) > 0.3:
-                physical_bonus += 0.1
-        
-        return min(weighted_sum + physical_bonus, 1.0)
-    
-    def _get_conversation_duration(self, conversation_state: Dict) -> int:
-        """Get conversation duration in seconds"""
-        started_at = conversation_state.get('started_at')
-        if not started_at:
-            return 0
-        
-        try:
-            start_time = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-            duration = (datetime.now() - start_time.replace(tzinfo=None)).total_seconds()
-            return int(duration)
-        except:
-            return 0
-    
-    def _determine_assessment_type(
-        self, 
-        primary_emotion: Optional[str], 
-        emotional_scores: Dict[str, float],
-        triggered_rules: List[str]
-    ) -> str:
-        """Determine the most appropriate assessment type"""
-        
-        # Check for suicide risk first
-        if 'suicide_risk_detected' in triggered_rules:
-            return 'suicide_risk'
-        
-        # Use primary emotion if identified
-        if primary_emotion:
-            return self.assessment_mapping.get(primary_emotion, 'phq9')
-        
-        # Fallback logic based on highest score
-        emotion_scores = {
-            emotion: emotional_scores.get(emotion, 0) 
-            for emotion in ['depression', 'anxiety', 'stress']
-        }
-        
-        if not any(emotion_scores.values()):
-            return 'phq9'  # Default to depression screening
-        
-        highest_emotion = max(emotion_scores, key=emotion_scores.get)
-        return self.assessment_mapping.get(highest_emotion, 'phq9')
-    
-    def _generate_transition_reason(
-        self, 
-        triggered_rules: List[str], 
-        primary_emotion: Optional[str]
-    ) -> str:
-        """Generate human-readable transition reason"""
-        
-        if 'suicide_risk_detected' in triggered_rules:
-            return "Phát hiện dấu hiệu nguy cơ tự tử - cần đánh giá ngay lập tức"
-        
-        if 'max_messages_reached' in triggered_rules:
-            return "Đã đạt số tin nhắn tối đa - chuyển sang đánh giá chi tiết"
-        
-        emotion_reasons = {
-            'depression': "Phát hiện dấu hiệu trầm cảm - cần đánh giá PHQ-9",
-            'anxiety': "Phát hiện dấu hiệu lo âu - cần đánh giá GAD-7", 
-            'stress': "Phát hiện dấu hiệu căng thẳng - cần đánh giá DASS-21"
-        }
-        
-        if primary_emotion and f'high_{primary_emotion}_score' in triggered_rules:
-            return emotion_reasons.get(primary_emotion, "Cần đánh giá chuyên sâu")
-        
-        if 'combined_emotional_distress' in triggered_rules:
-            return "Phát hiện nhiều dấu hiệu căng thẳng cảm xúc - cần đánh giá tổng hợp"
-        
-        if 'progressive_transition' in triggered_rules:
-            return "Cuộc trò chuyện đủ dài với dấu hiệu cảm xúc - chuyển sang đánh giá"
-        
-        if 'time_based_transition' in triggered_rules:
-            return "Đã trò chuyện đủ lâu - chuyển sang giai đoạn đánh giá"
-        
-        return "Cần chuyển sang đánh giá để hiểu rõ hơn tình trạng của bạn"
-
-class ConversationAnalyzer:
-    """Advanced conversation analysis for transition decisions"""
-    
-    def __init__(self):
-        self.rule_engine = TransitionRuleEngine()
-        
-        # Pattern recognition for conversation flow
-        self.conversation_patterns = {
-            'repetitive_complaints': [
-                r'tôi đã nói rồi', r'như tôi đã kể', r'lại cảm thấy',
-                r'vẫn như vậy', r'không thay đổi gì'
-            ],
-            'escalating_distress': [
-                r'ngày càng tệ', r'tệ hơn', r'không còn hy vọng',
-                r'worse', r'getting worse', r'no hope'
-            ],
-            'ready_for_assessment': [
-                r'tôi cần giúp đỡ', r'làm sao để', r'có cách nào',
-                r'i need help', r'how can i', r'is there a way'
-            ]
-        }
-    
-    def analyze_conversation_readiness(
-        self, 
-        messages: List[Dict], 
-        conversation_state: Dict
-    ) -> Dict[str, Any]:
-        """
-        Analyze conversation for readiness indicators
-        
-        Returns:
-            Dictionary with readiness analysis
-        """
-        user_messages = [msg for msg in messages if msg.get('role') == 'user']
-        combined_text = ' '.join([msg['content'] for msg in user_messages])
-        
-        readiness_indicators = {}
-        
-        # Check for conversation patterns
-        for pattern_name, patterns in self.conversation_patterns.items():
-            matches = sum(1 for pattern in patterns if re.search(pattern, combined_text, re.IGNORECASE))
-            readiness_indicators[pattern_name] = matches > 0
-        
-        # Analyze conversation progression
-        readiness_indicators.update({
-            'sufficient_context': len(user_messages) >= 4,
-            'emotional_disclosure': self._has_emotional_disclosure(user_messages),
-            'help_seeking_behavior': self._detect_help_seeking(combined_text),
-            'conversation_depth': self._assess_conversation_depth(user_messages)
-        })
-        
-        return readiness_indicators
-    
-    def _has_emotional_disclosure(self, messages: List[Dict]) -> bool:
-        """Check if user has disclosed emotional information"""
-        emotional_keywords = [
-            'cảm thấy', 'tôi', 'mình', 'cảm xúc', 'tâm trạng',
-            'feel', 'i', 'me', 'emotion', 'mood', 'feeling'
-        ]
-        
-        for msg in messages:
-            content = msg['content'].lower()
-            if any(keyword in content for keyword in emotional_keywords):
-                return True
-        return False
-    
-    def _detect_help_seeking(self, text: str) -> bool:
-        """Detect help-seeking language"""
-        help_patterns = [
-            r'giúp tôi', r'làm sao', r'có cách nào', r'tôi nên',
-            r'help me', r'how do i', r'what should i', r'can you help'
-        ]
-        
-        return any(re.search(pattern, text, re.IGNORECASE) for pattern in help_patterns)
-    
-    def _assess_conversation_depth(self, messages: List[Dict]) -> float:
-        """Assess the depth of conversation (0.0 to 1.0)"""
-        if not messages:
-            return 0.0
-        
-        # Factors for conversation depth
-        factors = []
-        
-        # Average message length
-        avg_length = sum(len(msg['content']) for msg in messages) / len(messages)
-        length_score = min(avg_length / 100, 1.0)  # Normalize to 100 chars
-        factors.append(length_score)
-        
-        # Message count factor
-        count_score = min(len(messages) / 8, 1.0)  # Normalize to 8 messages
-        factors.append(count_score)
-        
-        # Personal pronoun usage (indicates personal sharing)
-        combined_text = ' '.join([msg['content'] for msg in messages]).lower()
-        personal_pronouns = ['tôi', 'mình', 'em', 'i', 'me', 'my', 'myself']
-        pronoun_count = sum(combined_text.count(pronoun) for pronoun in personal_pronouns)
-        pronoun_score = min(pronoun_count / 10, 1.0)  # Normalize to 10 uses
-        factors.append(pronoun_score)
-        
-        return sum(factors) / len(factors)
-
-class TransitionManager:
-    """Main transition management system"""
+class SimplifiedTransitionLogic:
+    """Logic quyết định chuyển đổi được đơn giản hóa với AI context analysis"""
     
     def __init__(self):
         self.conversation_analyzer = ConversationAnalyzer()
-        self.rule_engine = TransitionRuleEngine()
-    
-    def should_transition(
-        self, 
-        messages: List[Dict], 
-        conversation_state: Dict,
-        force_evaluation: bool = False
-    ) -> TransitionResult:
-        """
-        Main method to determine if conversation should transition
         
-        Args:
-            messages: Conversation history
-            conversation_state: Current state
-            force_evaluation: Force evaluation regardless of message count
-            
-        Returns:
-            TransitionResult with decision and metadata
-        """
+        # Thresholds từ config
+        self.thresholds = {
+            'overall_threshold': 0.65,  # Tăng từ 0.4 hiện tại
+            'ai_weight': 0.5,
+            'depth_weight': 0.3,
+            'duration_weight': 0.2,
+            'minimum_messages': 4  # Tối thiểu 4 tin nhắn mới check transition
+        }
         
-        # Quick checks first
-        user_messages = [msg for msg in messages if msg.get('role') == 'user']
-        
-        if not user_messages and not force_evaluation:
-            return TransitionResult(
-                should_transition=False,
-                assessment_type='phq9',
-                confidence=0.0,
-                reason='No user messages to analyze',
-                triggered_rules=[],
-                emotional_indicators={}
-            )
-        
-        # Analyze conversation readiness
-        readiness = self.conversation_analyzer.analyze_conversation_readiness(
-            messages, conversation_state
-        )
-        
-        # Get rule-based evaluation
-        transition_result = self.rule_engine.evaluate_transition(
-            messages, conversation_state
-        )
-        
-        # Adjust confidence based on readiness indicators
-        readiness_boost = self._calculate_readiness_boost(readiness)
-        transition_result.confidence = min(
-            transition_result.confidence + readiness_boost, 1.0
-        )
-        
-        # Add readiness context to the result
-        if hasattr(transition_result, 'metadata'):
-            transition_result.metadata.update(readiness)
-        else:
-            # If metadata doesn't exist, create it
-            transition_result.metadata = readiness
-        
-        # Log transition decision
-        logger.info(
-            f"Transition evaluation: should_transition={transition_result.should_transition}, "
-            f"type={transition_result.assessment_type}, "
-            f"confidence={transition_result.confidence:.2f}, "
-            f"rules={transition_result.triggered_rules}"
-        )
-        
-        return transition_result
-    
-    def _calculate_readiness_boost(self, readiness: Dict[str, Any]) -> float:
-        """Calculate confidence boost based on readiness indicators"""
-        boost = 0.0
-        
-        if readiness.get('help_seeking_behavior'):
-            boost += 0.2
-        
-        if readiness.get('emotional_disclosure'):
-            boost += 0.1
-        
-        if readiness.get('ready_for_assessment'):
-            boost += 0.15
-        
-        depth_score = readiness.get('conversation_depth', 0)
-        boost += depth_score * 0.1
-        
-        return boost
-    
-    def get_transition_explanation(self, transition_result: TransitionResult) -> str:
-        """
-        Generate detailed explanation for the transition decision
-        
-        Args:
-            transition_result: Result from transition evaluation
-            
-        Returns:
-            Human-readable explanation
-        """
-        if not transition_result.should_transition:
-            return "Cuộc trò chuyện chưa đủ thông tin để chuyển sang đánh giá."
-        
-        explanation_parts = [f"Lý do chuyển đổi: {transition_result.reason}"]
-        
-        # Add emotional indicators
-        strong_indicators = [
-            emotion for emotion, score in transition_result.emotional_indicators.items()
-            if score > 0.4 and not emotion.startswith('_')
-        ]
-        
-        if strong_indicators:
-            explanation_parts.append(
-                f"Các dấu hiệu cảm xúc quan trọng: {', '.join(strong_indicators)}"
-            )
-        
-        # Add confidence level
-        confidence_level = "cao" if transition_result.confidence > 0.7 else "trung bình" if transition_result.confidence > 0.4 else "thấp"
-        explanation_parts.append(f"Độ tin cậy: {confidence_level} ({transition_result.confidence:.1%})")
-        
-        return ". ".join(explanation_parts)
+        # Assessment type mapping based on AI analysis
+        self.assessment_mapping = {
+            'clinical_anxiety': 'gad7',
+            'depression_signs': 'phq9',
+            'chronic_stress': 'dass21_stress',
+            'suicide_risk': 'suicide_risk',
+            'normal_worry': 'gad7',  # Default fallback
+            'normal_sadness': 'phq9',  # Default fallback
+            'situational_stress': 'dass21_stress'  # Default fallback
+        }
 
-# Factory function for easy integration
+    def analyze_with_ai_context(self, text: str, conversation_history: List[Dict]) -> Dict:
+        """
+        Thay thế keyword matching bằng AI analysis
+        
+        Params:
+            - text: Tin nhắn hiện tại
+            - conversation_history: Lịch sử cuộc trò chuyện
+        
+        Return: {
+            'severity': float,
+            'type': str,
+            'reasoning': str,
+            'needs_followup': bool
+        }
+        """
+        try:
+            # Gọi AI context analyzer
+            ai_result = classify_emotional_context(text, conversation_history)
+            
+            # Validate và process results
+            severity = max(0.0, min(1.0, ai_result.get('severity', 0.0)))
+            context_type = ai_result.get('type', 'normal_worry')
+            reasoning = ai_result.get('reasoning', 'AI analysis completed')
+            confidence = ai_result.get('confidence', 0.0)
+            
+            # Business logic layer
+            needs_followup = severity < 0.5 and confidence > 0.6
+            
+            # Special handling cho suicide risk
+            if context_type == 'suicide_risk':
+                severity = max(severity, 0.9)  # Force high severity
+                needs_followup = False  # Skip followup, go straight to assessment
+            
+            return {
+                'severity': severity,
+                'type': context_type,
+                'reasoning': reasoning,
+                'confidence': confidence,
+                'needs_followup': needs_followup
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in AI context analysis: {e}")
+            # Fallback to safe defaults
+            return {
+                'severity': 0.0,
+                'type': 'normal_worry',
+                'reasoning': f'AI analysis failed: {str(e)}',
+                'confidence': 0.0,
+                'needs_followup': True
+            }
+
+    def calculate_conversation_depth(self, history: List[Dict]) -> float:
+        """
+        Đánh giá độ sâu cuộc trò chuyện
+        
+        Params:
+            - history: Lịch sử tin nhắn
+        
+        Return: Depth score 0.0-1.0
+        """
+        try:
+            # Gọi conversation analyzer
+            depth_score = self.conversation_analyzer.calculate_progressive_depth(history)
+            
+            # Apply business rules
+            user_messages = [msg for msg in history if msg.get('role') == 'user']
+            message_count = len(user_messages)
+            
+            # Minimum messages requirement
+            if message_count < 3:
+                depth_score *= 0.5  # Penalize very short conversations
+            
+            # Normalize score
+            return max(0.0, min(1.0, depth_score))
+            
+        except Exception as e:
+            logger.error(f"Error calculating conversation depth: {e}")
+            return 0.0
+
+    def extract_duration_indicators(self, history: List[Dict]) -> float:
+        """
+        Phát hiện dấu hiệu về thời gian kéo dài
+        
+        Params:
+            - history: Lịch sử tin nhắn
+        
+        Return: Duration score 0.0-1.0
+        """
+        try:
+            # Combine text từ tất cả user messages
+            user_messages = [msg for msg in history if msg.get('role') == 'user']
+            if not user_messages:
+                return 0.0
+            
+            combined_text = ' '.join([msg['content'] for msg in user_messages])
+            
+            # Gọi conversation analyzer
+            temporal_indicators = self.conversation_analyzer.detect_temporal_indicators(combined_text)
+            duration_score = self.conversation_analyzer.score_duration_severity(temporal_indicators)
+            
+            return duration_score
+            
+        except Exception as e:
+            logger.error(f"Error extracting duration indicators: {e}")
+            return 0.0
+
+    def simplified_transition_decision(self, ai_severity: float, depth: float, duration: float) -> Tuple[bool, str]:
+        """
+        Quyết định chuyển đổi chỉ dựa trên 3 factors
+        
+        Params:
+            - ai_severity: AI analysis severity score
+            - depth: Conversation depth score  
+            - duration: Duration indicators score
+        
+        Return: (should_transition: bool, assessment_type: str)
+        """
+        # Weighted sum: AI(50%) + Depth(30%) + Duration(20%)
+        weighted_score = (
+            ai_severity * self.thresholds['ai_weight'] +
+            depth * self.thresholds['depth_weight'] +
+            duration * self.thresholds['duration_weight']
+        )
+        
+        should_transition = weighted_score >= self.thresholds['overall_threshold']
+        
+        # Determine assessment type based on highest contributing factor
+        if ai_severity >= depth and ai_severity >= duration:
+            # AI severity is highest - use AI recommendation
+            assessment_type = 'phq9'  # Default, will be overridden later
+        elif duration >= depth:
+            # Duration is highest - chronic issues
+            assessment_type = 'dass21_stress'
+        else:
+            # Depth is highest - general assessment
+            assessment_type = 'gad7'
+        
+        logger.info(f"Transition decision: AI={ai_severity:.2f}, Depth={depth:.2f}, "
+                   f"Duration={duration:.2f}, Weighted={weighted_score:.2f}, "
+                   f"Decision={should_transition}, Type={assessment_type}")
+        
+        return should_transition, assessment_type
+
+    def generate_smart_followup(self, ai_analysis: Dict, current_depth: float) -> str:
+        """
+        Tạo câu hỏi follow-up thông minh
+        
+        Params:
+            - ai_analysis: Result từ AI analysis
+            - current_depth: Current conversation depth
+        
+        Return: Follow-up message string
+        """
+        context_type = ai_analysis.get('type', 'normal_worry')
+        severity = ai_analysis.get('severity', 0.0)
+        
+        # Follow-up templates based on context type
+        followup_templates = {
+            'normal_worry': [
+                "Bạn có thể chia sẻ cụ thể hơn về điều gì đang khiến bạn lo lắng không?",
+                "Điều này đã ảnh hưởng đến cuộc sống hàng ngày của bạn như thế nào?",
+                "Bạn đã thử cách nào để giải quyết vấn đề này chưa?"
+            ],
+            'normal_sadness': [
+                "Cảm giác buồn này có kéo dài từ lúc nào không?",
+                "Bạn có muốn chia sẻ về nguyên nhân khiến bạn cảm thấy buồn?",
+                "Bạn có làm được những việc bình thường như trước đây không?"
+            ],
+            'situational_stress': [
+                "Tình huống này đã diễn ra trong bao lâu rồi?",
+                "Bạn cảm thấy stress này ảnh hưởng đến giấc ngủ hay ăn uống không?",
+                "Có ai bạn có thể tâm sự về vấn đề này không?"
+            ],
+            'clinical_anxiety': [
+                "Cảm giác lo âu này có xuất hiện khi không có lý do rõ ràng không?",
+                "Bạn có gặp các triệu chứng như tim đập nhanh, khó thở không?",
+                "Điều này có làm bạn tránh né các hoạt động bình thường không?"
+            ],
+            'depression_signs': [
+                "Bạn có mất hứng thú với những việc từng thích làm không?",
+                "Giấc ngủ và cảm giác năng lượng của bạn có thay đổi không?",
+                "Bạn có cảm thấy tuyệt vọng về tương lai không?"
+            ],
+            'chronic_stress': [
+                "Tình trạng này đã kéo dài bao lâu rồi?",
+                "Bạn có thấy khó khăn trong việc thư giãn hay nghỉ ngơi không?",
+                "Stress này có ảnh hưởng đến công việc hay học tập không?"
+            ]
+        }
+        
+        # Get appropriate questions
+        questions = followup_templates.get(context_type, followup_templates['normal_worry'])
+        
+        # Choose question based on current depth
+        if current_depth < 0.3:
+            # Low depth - encourage general sharing
+            question = questions[0]
+        elif current_depth < 0.6:
+            # Medium depth - probe specifics
+            question = questions[1] if len(questions) > 1 else questions[0]
+        else:
+            # High depth - ask about impact
+            question = questions[-1]
+        
+        # Add appropriate prefix based on severity
+        if severity > 0.6:
+            prefix = "Tôi hiểu đây là điều khó khăn với bạn. "
+        elif severity > 0.3:
+            prefix = "Cảm ơn bạn đã chia sẻ. "
+        else:
+            prefix = ""
+        
+        return prefix + question
+
+    def should_transition_to_assessment(self, current_message: str, conversation_history: List[Dict]) -> Tuple[bool, str, str]:
+        """
+        Main entry point - quyết định có nên chuyển sang assessment không
+        
+        Params:
+            - current_message: Tin nhắn hiện tại
+            - conversation_history: Lịch sử cuộc trò chuyện
+        
+        Return: (should_transition, assessment_type, reasoning)
+        """
+        try:
+            # Check minimum message requirement
+            user_messages = [msg for msg in conversation_history if msg.get('role') == 'user']
+            if len(user_messages) < self.thresholds['minimum_messages']:
+                return False, '', f"Cần thêm {self.thresholds['minimum_messages'] - len(user_messages)} tin nhắn nữa"
+            
+            # 1. AI Context Analysis (50% weight)
+            ai_analysis = self.analyze_with_ai_context(current_message, conversation_history)
+            ai_severity = ai_analysis['severity']
+            context_type = ai_analysis['type']
+            
+            # 2. Conversation Depth Analysis (30% weight)
+            depth_score = self.calculate_conversation_depth(conversation_history)
+            
+            # 3. Duration Analysis (20% weight)
+            duration_score = self.extract_duration_indicators(conversation_history)
+            
+            # 4. Make decision
+            should_transition, base_assessment_type = self.simplified_transition_decision(
+                ai_severity, depth_score, duration_score
+            )
+            
+            # 5. Map AI context type to specific assessment
+            final_assessment_type = self.assessment_mapping.get(context_type, base_assessment_type)
+            
+            # 6. Generate reasoning
+            reasoning = self._generate_transition_reasoning(
+                ai_analysis, depth_score, duration_score, should_transition
+            )
+            
+            return should_transition, final_assessment_type, reasoning
+            
+        except Exception as e:
+            logger.error(f"Error in transition decision: {e}")
+            return False, '', f"Lỗi trong quá trình phân tích: {str(e)}"
+
+    def _generate_transition_reasoning(self, ai_analysis: Dict, depth: float, duration: float, decision: bool) -> str:
+        """Generate human-readable reasoning for the transition decision"""
+        
+        reasoning_parts = []
+        
+        if decision:
+            reasoning_parts.append("Quyết định chuyển sang đánh giá vì:")
+            
+            # AI analysis reasoning
+            if ai_analysis['severity'] > 0.4:
+                reasoning_parts.append(f"- AI phát hiện dấu hiệu {ai_analysis['type']} (mức độ: {ai_analysis['severity']:.1f})")
+            
+            # Depth reasoning
+            if depth > 0.4:
+                reasoning_parts.append(f"- Cuộc trò chuyện có độ sâu cao ({depth:.1f}) - bạn đã chia sẻ nhiều thông tin cá nhân")
+            
+            # Duration reasoning
+            if duration > 0.4:
+                reasoning_parts.append(f"- Phát hiện dấu hiệu kéo dài thời gian ({duration:.1f})")
+            
+        else:
+            reasoning_parts.append("Tiếp tục trò chuyện vì:")
+            reasoning_parts.append(f"- Chưa đủ dấu hiệu để đánh giá (AI: {ai_analysis['severity']:.1f}, Depth: {depth:.1f}, Duration: {duration:.1f})")
+        
+        return " ".join(reasoning_parts)
+
+# Main transition manager class
+class TransitionManager:
+    """Wrapper class để tương thích với code hiện tại"""
+    
+    def __init__(self):
+        self.logic = SimplifiedTransitionLogic()
+    
+    def should_transition(self, messages: List[Dict], conversation_state: Dict) -> Tuple[bool, str, str]:
+        """
+        Main method cho transition check
+        
+        Params:
+            - messages: Conversation history
+            - conversation_state: Current state
+        
+        Return: (should_transition, assessment_type, reasoning)
+        """
+        if not messages:
+            return False, '', 'Không có tin nhắn để phân tích'
+        
+        # Get current message
+        user_messages = [msg for msg in messages if msg.get('role') == 'user']
+        if not user_messages:
+            return False, '', 'Không có tin nhắn từ user'
+        
+        current_message = user_messages[-1]['content']
+        
+        return self.logic.should_transition_to_assessment(current_message, messages)
+    
+    def generate_followup_question(self, messages: List[Dict]) -> str:
+        """Generate smart followup question"""
+        if not messages:
+            return "Bạn có thể chia sẻ thêm với tôi không?"
+        
+        user_messages = [msg for msg in messages if msg.get('role') == 'user']
+        if not user_messages:
+            return "Hãy cho tôi biết thêm về cảm giác của bạn."
+        
+        current_message = user_messages[-1]['content']
+        ai_analysis = self.logic.analyze_with_ai_context(current_message, messages)
+        current_depth = self.logic.calculate_conversation_depth(messages)
+        
+        return self.logic.generate_smart_followup(ai_analysis, current_depth)
+
+# Factory function
 def create_transition_manager() -> TransitionManager:
     """Create and return a configured TransitionManager instance"""
     return TransitionManager()
 
-# Utility function for quick transition check
-def quick_transition_check(
-    messages: List[Dict], 
-    conversation_state: Dict
-) -> Tuple[bool, str]:
-    """
-    Quick utility function for transition checking
-    
-    Returns:
-        (should_transition, assessment_type)
-    """
+# Convenience functions for backward compatibility
+def should_transition_to_assessment(message: str, history: List[Dict]) -> Tuple[bool, str]:
+    """Convenience function for quick transition check"""
     manager = create_transition_manager()
-    result = manager.should_transition(messages, conversation_state)
-    return result.should_transition, result.assessment_type
+    should_transition, assessment_type, _ = manager.should_transition(history + [{'role': 'user', 'content': message}], {})
+    return should_transition, assessment_type
+
+def analyze_conversation_depth(history: List[Dict]) -> float:
+    """Convenience function for depth analysis"""
+    logic = SimplifiedTransitionLogic()
+    return logic.calculate_conversation_depth(history)
+
+def extract_duration_score(history: List[Dict]) -> float:
+    """Convenience function for duration analysis"""
+    logic = SimplifiedTransitionLogic()
+    return logic.extract_duration_indicators(history)
+
+def get_ai_context_analysis(message: str, history: List[Dict]) -> Dict:
+    """Convenience function for AI context analysis"""
+    logic = SimplifiedTransitionLogic()
+    return logic.analyze_with_ai_context(message, history)
+
+# Debugging and monitoring functions
+def analyze_transition_decision_details(message: str, history: List[Dict]) -> Dict:
+    """
+    Detailed analysis for debugging transition decisions
+    Returns all factors and intermediate calculations
+    """
+    try:
+        logic = SimplifiedTransitionLogic()
+        
+        # Get all analysis components
+        ai_analysis = logic.analyze_with_ai_context(message, history)
+        depth_score = logic.calculate_conversation_depth(history)
+        duration_score = logic.extract_duration_indicators(history)
+        
+        # Calculate weighted score
+        weighted_score = (
+            ai_analysis['severity'] * logic.thresholds['ai_weight'] +
+            depth_score * logic.thresholds['depth_weight'] +
+            duration_score * logic.thresholds['duration_weight']
+        )
+        
+        should_transition = weighted_score >= logic.thresholds['overall_threshold']
+        
+        # Determine assessment type
+        context_type = ai_analysis.get('type', 'normal_worry')
+        assessment_type = logic.assessment_mapping.get(context_type, 'phq9')
+        
+        return {
+            'message': message,
+            'user_message_count': len([msg for msg in history if msg.get('role') == 'user']),
+            'ai_analysis': {
+                'severity': ai_analysis['severity'],
+                'type': ai_analysis['type'],
+                'reasoning': ai_analysis['reasoning'],
+                'confidence': ai_analysis['confidence'],
+                'weighted_contribution': ai_analysis['severity'] * logic.thresholds['ai_weight']
+            },
+            'depth_analysis': {
+                'score': depth_score,
+                'weighted_contribution': depth_score * logic.thresholds['depth_weight']
+            },
+            'duration_analysis': {
+                'score': duration_score,
+                'weighted_contribution': duration_score * logic.thresholds['duration_weight']
+            },
+            'decision': {
+                'total_weighted_score': weighted_score,
+                'threshold': logic.thresholds['overall_threshold'],
+                'should_transition': should_transition,
+                'assessment_type': assessment_type,
+                'margin': weighted_score - logic.thresholds['overall_threshold']
+            },
+            'weights': logic.thresholds,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in detailed transition analysis: {e}")
+        return {
+            'error': str(e),
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        }
+
+def get_transition_explanation(message: str, history: List[Dict]) -> str:
+    """
+    Generate human-readable explanation of transition decision
+    """
+    try:
+        details = analyze_transition_decision_details(message, history)
+        
+        if 'error' in details:
+            return f"Không thể phân tích: {details['error']}"
+        
+        explanation_parts = []
+        
+        # Overall decision
+        if details['decision']['should_transition']:
+            explanation_parts.append(f"✅ CHUYỂN SANG ĐÁNH GIÁ {details['decision']['assessment_type'].upper()}")
+        else:
+            explanation_parts.append("❌ TIẾP TỤC TRÒ CHUYỆN")
+        
+        # Score breakdown
+        explanation_parts.append(f"📊 Điểm tổng: {details['decision']['total_weighted_score']:.3f}/{details['decision']['threshold']}")
+        
+        # Factor contributions
+        explanation_parts.append("🔍 Phân tích chi tiết:")
+        explanation_parts.append(f"   • AI Analysis: {details['ai_analysis']['severity']:.2f} x {details['weights']['ai_weight']} = {details['ai_analysis']['weighted_contribution']:.3f}")
+        explanation_parts.append(f"     Type: {details['ai_analysis']['type']}")
+        explanation_parts.append(f"     Reasoning: {details['ai_analysis']['reasoning']}")
+        
+        explanation_parts.append(f"   • Conversation Depth: {details['depth_analysis']['score']:.2f} x {details['weights']['depth_weight']} = {details['depth_analysis']['weighted_contribution']:.3f}")
+        
+        explanation_parts.append(f"   • Duration Indicators: {details['duration_analysis']['score']:.2f} x {details['weights']['duration_weight']} = {details['duration_analysis']['weighted_contribution']:.3f}")
+        
+        # Decision margin
+        margin = details['decision']['margin']
+        if margin > 0:
+            explanation_parts.append(f"📈 Vượt threshold: +{margin:.3f}")
+        else:
+            explanation_parts.append(f"📉 Dưới threshold: {margin:.3f}")
+        
+        return "\n".join(explanation_parts)
+        
+    except Exception as e:
+        logger.error(f"Error generating transition explanation: {e}")
+        return f"Lỗi tạo giải thích: {str(e)}"
+
+# Configuration and tuning functions
+def update_transition_thresholds(new_thresholds: Dict) -> bool:
+    """
+    Update transition thresholds dynamically
+    For A/B testing and optimization
+    """
+    try:
+        logic = SimplifiedTransitionLogic()
+        
+        # Validate new thresholds
+        if 'overall_threshold' in new_thresholds:
+            if not 0.0 <= new_thresholds['overall_threshold'] <= 1.0:
+                raise ValueError("overall_threshold must be between 0.0 and 1.0")
+            logic.thresholds['overall_threshold'] = new_thresholds['overall_threshold']
+        
+        # Validate and update weights
+        weight_keys = ['ai_weight', 'depth_weight', 'duration_weight']
+        if any(key in new_thresholds for key in weight_keys):
+            # Update weights
+            for key in weight_keys:
+                if key in new_thresholds:
+                    logic.thresholds[key] = new_thresholds[key]
+            
+            # Validate weights sum to 1.0
+            weight_sum = sum(logic.thresholds[key] for key in weight_keys)
+            if abs(weight_sum - 1.0) > 0.01:
+                raise ValueError(f"Weights must sum to 1.0, current sum: {weight_sum}")
+        
+        logger.info(f"Updated transition thresholds: {logic.thresholds}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating transition thresholds: {e}")
+        return False
+
+def get_current_transition_config() -> Dict:
+    """Get current transition configuration"""
+    logic = SimplifiedTransitionLogic()
+    return {
+        'thresholds': logic.thresholds.copy(),
+        'assessment_mapping': logic.assessment_mapping.copy(),
+        'version': 'ai_powered_v1.0'
+    }
+
+# Performance monitoring functions
+def calculate_transition_metrics(conversation_logs: List[Dict]) -> Dict:
+    """
+    Calculate transition performance metrics from conversation logs
+    For monitoring false positive/negative rates
+    """
+    try:
+        metrics = {
+            'total_conversations': len(conversation_logs),
+            'transitions_made': 0,
+            'ai_analysis_success_rate': 0,
+            'average_messages_before_transition': 0,
+            'assessment_type_distribution': {},
+            'ai_severity_distribution': {'low': 0, 'medium': 0, 'high': 0},
+            'depth_score_distribution': {'low': 0, 'medium': 0, 'high': 0},
+            'duration_score_distribution': {'low': 0, 'medium': 0, 'high': 0}
+        }
+        
+        if not conversation_logs:
+            return metrics
+        
+        transitions = []
+        ai_successes = 0
+        
+        for log in conversation_logs:
+            # Count transitions
+            if log.get('transitioned', False):
+                metrics['transitions_made'] += 1
+                transitions.append(log.get('message_count_at_transition', 0))
+                
+                # Assessment type distribution
+                assessment_type = log.get('assessment_type', 'unknown')
+                metrics['assessment_type_distribution'][assessment_type] = \
+                    metrics['assessment_type_distribution'].get(assessment_type, 0) + 1
+            
+            # AI analysis success rate
+            if log.get('ai_analysis_successful', False):
+                ai_successes += 1
+                
+                # Score distributions
+                ai_severity = log.get('ai_severity', 0.0)
+                if ai_severity < 0.3:
+                    metrics['ai_severity_distribution']['low'] += 1
+                elif ai_severity < 0.7:
+                    metrics['ai_severity_distribution']['medium'] += 1
+                else:
+                    metrics['ai_severity_distribution']['high'] += 1
+            
+            # Depth and duration distributions
+            depth_score = log.get('depth_score', 0.0)
+            duration_score = log.get('duration_score', 0.0)
+            
+            if depth_score < 0.3:
+                metrics['depth_score_distribution']['low'] += 1
+            elif depth_score < 0.7:
+                metrics['depth_score_distribution']['medium'] += 1
+            else:
+                metrics['depth_score_distribution']['high'] += 1
+                
+            if duration_score < 0.3:
+                metrics['duration_score_distribution']['low'] += 1
+            elif duration_score < 0.7:
+                metrics['duration_score_distribution']['medium'] += 1
+            else:
+                metrics['duration_score_distribution']['high'] += 1
+        
+        # Calculate rates
+        metrics['transition_rate'] = metrics['transitions_made'] / metrics['total_conversations']
+        metrics['ai_analysis_success_rate'] = ai_successes / metrics['total_conversations']
+        
+        if transitions:
+            metrics['average_messages_before_transition'] = sum(transitions) / len(transitions)
+        
+        return metrics
+        
+    except Exception as e:
+        logger.error(f"Error calculating transition metrics: {e}")
+        return {'error': str(e)}
+
+# Export all public functions
+__all__ = [
+    'SimplifiedTransitionLogic',
+    'TransitionManager', 
+    'create_transition_manager',
+    'should_transition_to_assessment',
+    'analyze_conversation_depth',
+    'extract_duration_score',
+    'get_ai_context_analysis',
+    'analyze_transition_decision_details',
+    'get_transition_explanation',
+    'update_transition_thresholds',
+    'get_current_transition_config',
+    'calculate_transition_metrics'
+]

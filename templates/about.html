@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Về chúng tôi - Mental Health Chatbot{% endblock %}
+
+{% block additional_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/about.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="about-container">
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Về Mental Health Chatbot</h1>
+                <p class="hero-subtitle">
+                    Nền tảng đánh giá sức khỏe tâm thần hiện đại, sử dụng AI và các tiêu chuẩn quốc tế
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission Section -->
+    <section class="mission-section">
+        <div class="container">
+            <div class="section-grid">
+                <div class="content-column">
+                    <h2 class="section-title">Sứ mệnh của chúng tôi</h2>
+                    <p class="section-text">
+                        Chúng tôi tin rằng sức khỏe tâm thần là quyền cơ bản của mọi người. Mental Health Chatbot 
+                        được xây dựng để cung cấp công cụ đánh giá sức khỏe tâm thần dễ tiếp cận, chính xác và 
+                        bảo mật cho tất cả mọi người.
+                    </p>
+                    <p class="section-text">
+                        Thông qua việc kết hợp trí tuệ nhân tạo hiện đại với các bộ tiêu chuẩn đánh giá quốc tế 
+                        như PHQ-9, GAD-7, chúng tôi mang đến trải nghiệm đánh giá toàn diện và đáng tin cậy.
+                    </p>
+                </div>
+                <div class="image-column">
+                    <div class="mission-visual">
+                        <div class="visual-icon">
+                            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section">
+        <div class="container">
+            <h2 class="section-title centered">Tính năng nổi bật</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12l2 2 4-4"></path>
+                            <circle cx="12" cy="12" r="10"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Đánh giá chuẩn quốc tế</h3>
+                    <p class="feature-description">
+                        Sử dụng các bộ câu hỏi PHQ-9, GAD-7, DASS-21 được công nhận rộng rãi 
+                        trong cộng đồng y tế quốc tế.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">AI hỗ trợ thông minh</h3>
+                    <p class="feature-description">
+                        Trí tuệ nhân tạo hiện đại giúp tương tác tự nhiên và cung cấp 
+                        thông tin hỗ trợ phù hợp với từng người dùng.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <circle cx="12" cy="16" r="1"></circle>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Bảo mật tuyệt đối</h3>
+                    <p class="feature-description">
+                        Tất cả thông tin cá nhân được mã hóa và bảo vệ theo tiêu chuẩn 
+                        bảo mật cao nhất, không lưu trữ dữ liệu cá nhân.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12,6 12,12 16,14"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Kết quả tức thì</h3>
+                    <p class="feature-description">
+                        Nhận kết quả đánh giá và báo cáo chi tiết ngay sau khi hoàn thành, 
+                        có thể xuất ra PDF để lưu trữ.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                            <path d="M2 12l10 5 10-5"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Đa dạng hình thức</h3>
+                    <p class="feature-description">
+                        Cung cấp 2 chế độ: AI Chat tự nhiên và Logic Poll có cấu trúc, 
+                        phù hợp với nhiều nhu cầu khác nhau.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Hỗ trợ chuyên nghiệp</h3>
+                    <p class="feature-description">
+                        Cung cấp thông tin tham khảo và gợi ý tìm kiếm sự hỗ trợ chuyên nghiệp 
+                        khi cần thiết.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works Section -->
+    <section class="how-it-works-section">
+        <div class="container">
+            <h2 class="section-title centered">Cách hoạt động</h2>
+            
+            <div class="steps-container">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3 class="step-title">Chọn chế độ đánh giá</h3>
+                        <p class="step-description">
+                            Lựa chọn giữa chế độ AI Chat tự nhiên hoặc chế độ Logic Poll có cấu trúc
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step-divider">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9,18 15,12 9,6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3 class="step-title">Trả lời câu hỏi</h3>
+                        <p class="step-description">
+                            Chia sẻ tâm trạng hoặc trả lời các câu hỏi đánh giá một cách trung thực
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step-divider">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9,18 15,12 9,6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3 class="step-title">Nhận kết quả</h3>
+                        <p class="step-description">
+                            Xem báo cáo chi tiết về tình trạng sức khỏe tâm thần và các gợi ý hữu ích
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Disclaimer Section -->
+    <section class="disclaimer-section">
+        <div class="container">
+            <div class="disclaimer-card">
+                <div class="disclaimer-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="disclaimer-content">
+                    <h3 class="disclaimer-title">Lưu ý quan trọng</h3>
+                    <p class="disclaimer-text">
+                        Mental Health Chatbot chỉ là công cụ hỗ trợ đánh giá sơ bộ và không thay thế 
+                        cho việc chẩn đoán y tế chuyên nghiệp. Nếu bạn đang trải qua khó khăn nghiêm trọng 
+                        về tâm lý, vui lòng tìm kiếm sự hỗ trợ từ các chuyên gia y tế hoặc tâm lý.
+                    </p>
+                    <div class="emergency-contact">
+                        <strong>Đường dây nóng hỗ trợ tâm lý:</strong> 1800 1567 (miễn phí 24/7)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2 class="cta-title">Sẵn sàng bắt đầu đánh giá?</h2>
+                <p class="cta-description">
+                    Hãy dành vài phút để quan tâm đến sức khỏe tâm thần của bản thân
+                </p>
+                <div class="cta-buttons">
+                    <a href="{{ url_for('chat') }}" class="cta-button primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Bắt đầu với AI Chat
+                    </a>
+                    <a href="{{ url_for('assessment') }}" class="cta-button secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        Thử Logic Assessment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script src="{{ url_for('static', filename='js/about.js') }}"></script>
+{% endblock %}
