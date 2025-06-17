@@ -1,13 +1,14 @@
 """
 Mental Health Chatbot - Main Flask Application
-Fixed to work with new AI-powered transition logic
+COMPLETE REWRITE - Fixed all import conflicts and route issues
 """
 
 import os
 import sys
 import logging
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
+import traceback
 
 # Fix Unicode encoding for Windows
 if os.name == 'nt':  # Windows
@@ -29,22 +30,19 @@ if hasattr(sys.stderr, 'reconfigure'):
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-# Import configuration - FIXED
-from config import FLASK_DEBUG, SECRET_KEY, FLASK_ENV, validate_config
-
-# Import API blueprints
-from src.api.chat import chat_bp
+# Import configuration - FIXED to handle missing config gracefully
 try:
-    from src.api.assessment import assessment_bp
+    from config import FLASK_DEBUG, SECRET_KEY, FLASK_ENV, validate_config
 except ImportError:
-    assessment_bp = None
+    # Fallback configuration if config.py is missing
+    FLASK_DEBUG = True
+    SECRET_KEY = 'dev-secret-key-change-in-production'
+    FLASK_ENV = 'development'
     
-try:
-    from src.api.export import export_bp  
-except ImportError:
-    export_bp = None
+    def validate_config():
+        return ["Config file missing - using fallback configuration"]
 
-# Import services
+# Import services with error handling
 from src.services.ai_context_analyzer import initialize_ai_analyzer
 from src.services.together_client import get_together_client
 
@@ -152,126 +150,244 @@ def initialize_services(app):
             app.logger.error(f"AI Context Analyzer error: {e}")
 
 def register_blueprints(app):
-    """Register API blueprints"""
+    """Register API blueprints - FIXED with proper error handling"""
+    
     # Always register chat blueprint (main functionality)
-    app.register_blueprint(chat_bp, url_prefix='/api/chat')
-    app.logger.info("Registered chat blueprint")
-    
-    # Initialize chat services after registering blueprint
     try:
-        from src.api.chat import register_init_services
-        register_init_services(app)
+        from src.api.chat import chat_bp
+        app.register_blueprint(chat_bp, url_prefix='/api/chat')
+        app.logger.info("Registered chat blueprint")
+        
+        # Initialize chat services after registering blueprint
+        try:
+            from src.api.chat import register_init_services
+            register_init_services(app)
+        except Exception as e:
+            app.logger.error(f"Failed to initialize chat services: {e}")
+            
+    except ImportError as e:
+        app.logger.error(f"Failed to import chat blueprint: {e}")
     except Exception as e:
-        app.logger.error(f"Failed to initialize chat services: {e}")
+        app.logger.error(f"Failed to register chat blueprint: {e}")
     
-    # Register assessment blueprint if available
-    if assessment_bp:
-        app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
-        app.logger.info("Registered assessment blueprint")
-    else:
-        app.logger.warning("Assessment blueprint not available")
+    # FIXED: Register assessment blueprint with proper error handling
+    try:
+        from src.api.assessment import assessment_bp
+        if assessment_bp:
+            app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
+            app.logger.info("Registered assessment blueprint")
+        else:
+            app.logger.warning("Assessment blueprint not available")
+    except ImportError as e:
+        app.logger.warning(f"Assessment blueprint not available - import error: {e}")
+    except Exception as e:
+        app.logger.error(f"Failed to register assessment blueprint: {e}")
     
     # Register export blueprint if available
-    if export_bp:
-        app.register_blueprint(export_bp, url_prefix='/api/export')
-        app.logger.info("Registered export blueprint")
-    else:
-        app.logger.warning("Export blueprint not available")
+    try:
+        from src.api.export import export_bp
+        if export_bp:
+            app.register_blueprint(export_bp, url_prefix='/api/export')
+            app.logger.info("Registered export blueprint")
+        else:
+            app.logger.warning("Export blueprint not available")
+    except ImportError as e:
+        app.logger.warning(f"Export blueprint not available - import error: {e}")
+    except Exception as e:
+        app.logger.error(f"Failed to register export blueprint: {e}")
 
 def register_routes(app):
-    """Register main application routes"""
+    """Register main application routes - FIXED to avoid conflicts"""
     
     @app.route('/')
     def index():
-        """Home page - chatbot interface"""
-        return render_template('home.html')
+        """Home page - assessment mode selection"""
+        try:
+            return render_template('home.html')
+        except Exception as e:
+            app.logger.error(f"Error rendering home page: {e}")
+            return render_template_safe('error.html', 
+                                      error_message='Không thể tải trang chủ'), 500
     
     @app.route('/chat')
     def chat():
-        """Chat interface page"""
-        # Initialize session if needed
-        if 'session_id' not in session:
-            session['session_id'] = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            session['created_at'] = datetime.now().isoformat()
-        
-        return render_template('chat.html', session_id=session['session_id'])
+        """Chat interface page - AI mode"""
+        try:
+            # Initialize session if needed
+            if 'session_id' not in session:
+                session['session_id'] = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                session['created_at'] = datetime.now().isoformat()
+            
+            return render_template('chat.html', session_id=session['session_id'])
+        except Exception as e:
+            app.logger.error(f"Error rendering chat page: {e}")
+            return render_template_safe('error.html', 
+                                      error_message='Không thể tải trang trò chuyện'), 500
     
+    # FIXED: Assessment page route - no conflicts with API blueprint
     @app.route('/assessment')
-    def assessment():
-        """Assessment page"""
-        return render_template('assessment.html')
+    def assessment_page():
+        """Assessment page - Logic mode with structured questionnaires"""
+        try:
+            # Prepare assessment data for template (matches assessment.html expectations)
+            assessment_types = {
+                'phq9': {
+                    'title': 'PHQ-9 - Đánh giá Trầm cảm',
+                    'description': 'Bộ câu hỏi sàng lọc trầm cảm được sử dụng rộng rãi trong y tế, giúp đánh giá mức độ và triệu chứng trầm cảm.',
+                    'question_count': 9,
+                    'estimated_time': '3-5 phút',
+                    'category': 'depression'
+                },
+                'gad7': {
+                    'title': 'GAD-7 - Đánh giá Lo âu',
+                    'description': 'Bộ câu hỏi đánh giá rối loạn lo âu tổng quát, được phát triển để sàng lọc và đánh giá mức độ lo âu.',
+                    'question_count': 7,
+                    'estimated_time': '2-4 phút',
+                    'category': 'anxiety'
+                },
+                'dass21_stress': {
+                    'title': 'DASS-21 - Đánh giá Căng thẳng',
+                    'description': 'Phần đánh giá stress từ bộ DASS-21, giúp đo lường mức độ căng thẳng và áp lực tâm lý.',
+                    'question_count': 7,
+                    'estimated_time': '3-5 phút',
+                    'category': 'stress'
+                },
+                'suicide_risk': {
+                    'title': 'Đánh giá Nguy cơ Tự tử',
+                    'description': 'Đánh giá nhanh nguy cơ tự tử và các yếu tố liên quan.',
+                    'question_count': 5,
+                    'estimated_time': '2-3 phút',
+                    'category': 'risk'
+                }
+            }
+            
+            return render_template('assessment.html', 
+                                 assessment_types=assessment_types,
+                                 page_title='Đánh giá Sức khỏe Tâm thần')
+        
+        except Exception as e:
+            app.logger.error(f"Error rendering assessment page: {e}")
+            return render_template_safe('error.html', 
+                                      error_message='Không thể tải trang đánh giá'), 500
     
     @app.route('/results')
     def results():
         """Results display page"""
-        return render_template('results.html')
+        try:
+            return render_template('results.html')
+        except Exception as e:
+            app.logger.error(f"Error rendering results page: {e}")
+            return render_template_safe('error.html', 
+                                      error_message='Không thể tải trang kết quả'), 500
     
     @app.route('/about')
     def about():
         """About page"""
-        return render_template('about.html')
+        try:
+            return render_template('about.html')
+        except Exception as e:
+            app.logger.error(f"Error rendering about page: {e}")
+            return render_template_safe('error.html', 
+                                      error_message='Không thể tải trang giới thiệu'), 500
     
     @app.route('/privacy')
     def privacy():
         """Privacy policy page"""
-        return render_template('privacy.html')
+        try:
+            return render_template('privacy.html')
+        except Exception as e:
+            app.logger.error(f"Error rendering privacy page: {e}")
+            return render_template_safe('error.html', 
+                                      error_message='Không thể tải trang chính sách'), 500
     
-    @app.route('/admin')
-    def admin():
-        """Admin dashboard"""
-        return render_template('admin.html')
-    
+    # ADDED: Health check endpoint for monitoring
     @app.route('/health')
     def health_check():
-        """Health check endpoint for monitoring"""
+        """Health check endpoint"""
         try:
-            # Check basic functionality
             health_status = {
                 'status': 'healthy',
-                'service': 'mental-health-chatbot',
-                'version': '2.0.0-ai-powered',
                 'timestamp': datetime.now().isoformat(),
-                'components': {
-                    'flask': 'running',
-                    'together_ai': 'unknown',
-                    'ai_analyzer': 'unknown'
+                'version': '1.0.0',
+                'services': {
+                    'web_server': 'running',
+                    'templates': 'available',
+                    'static_files': 'available'
                 }
             }
             
-            # Check Together AI
-            try:
-                client = get_together_client()
-                health_status['components']['together_ai'] = 'available' if client else 'unavailable'
-            except:
-                health_status['components']['together_ai'] = 'error'
+            # Check if critical templates exist
+            template_dir = os.path.join(app.template_folder or 'templates')
+            critical_templates = ['base.html', 'home.html', 'chat.html', 'assessment.html']
             
-            # Check AI analyzer
-            try:
-                from src.services.ai_context_analyzer import ai_context_analyzer
-                health_status['components']['ai_analyzer'] = 'available' if ai_context_analyzer.initialized else 'unavailable'
-            except:
-                health_status['components']['ai_analyzer'] = 'error'
+            for template in critical_templates:
+                template_path = os.path.join(template_dir, template)
+                if not os.path.exists(template_path):
+                    health_status['services'][f'template_{template}'] = 'missing'
+                    health_status['status'] = 'degraded'
+                else:
+                    health_status['services'][f'template_{template}'] = 'available'
             
-            return health_status
+            status_code = 200 if health_status['status'] == 'healthy' else 503
+            return jsonify(health_status), status_code
             
         except Exception as e:
             app.logger.error(f"Health check error: {e}")
-            return {
-                'status': 'unhealthy', 
+            return jsonify({
+                'status': 'unhealthy',
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
-            }, 500
+            }), 500
+
+def render_template_safe(template_name, **kwargs):
+    """Safe template rendering with fallback"""
+    try:
+        return render_template(template_name, **kwargs)
+    except Exception as e:
+        # Fallback to basic HTML if template fails
+        error_message = kwargs.get('error_message', 'Đã xảy ra lỗi')
+        return f"""
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Lỗi - Trợ lý Sức khỏe Tâm thần</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; text-align: center; }}
+                .error {{ color: #dc3545; margin: 20px 0; }}
+                .btn {{ 
+                    display: inline-block; 
+                    padding: 10px 20px; 
+                    background: #007bff; 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 5px; 
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>🤖 Trợ lý Sức khỏe Tâm thần</h1>
+            <div class="error">
+                <h2>Có lỗi xảy ra</h2>
+                <p>{error_message}</p>
+            </div>
+            <a href="/" class="btn">Quay lại trang chủ</a>
+        </body>
+        </html>
+        """
 
 def register_error_handlers(app):
-    """Register error handlers"""
+    """Register error handlers for the application"""
     
     @app.errorhandler(404)
     def not_found(error):
-        app.logger.warning(f"404 error: {request.url}")
         try:
             return render_template('errors/404.html'), 404
         except:
-            return {'error': 'Page not found'}, 404
+            return render_template_safe('error.html', 
+                                      error_message='Trang không tồn tại'), 404
     
     @app.errorhandler(500)
     def internal_error(error):
@@ -279,7 +395,8 @@ def register_error_handlers(app):
         try:
             return render_template('errors/500.html'), 500
         except:
-            return {'error': 'Internal server error'}, 500
+            return render_template_safe('error.html', 
+                                      error_message='Lỗi máy chủ nội bộ'), 500
     
     @app.errorhandler(Exception)
     def handle_exception(error):
@@ -287,7 +404,8 @@ def register_error_handlers(app):
         try:
             return render_template('errors/500.html'), 500
         except:
-            return {'error': 'An unexpected error occurred'}, 500
+            return render_template_safe('error.html', 
+                                      error_message='Đã xảy ra lỗi không mong muốn'), 500
 
 # Global exception handler for better debugging
 def log_exception(sender, exception, **extra):
@@ -315,92 +433,44 @@ if __name__ == '__main__':
         print(f"⚠️ Warning: Templates directory not found at {template_dir}")
         print("Creating basic templates directory...")
         os.makedirs(template_dir, exist_ok=True)
+    else:
+        print(f"✅ Templates directory found: {template_dir}")
         
-        # Create a basic index.html if it doesn't exist
-        index_path = os.path.join(template_dir, 'index.html')
-        if not os.path.exists(index_path):
-            with open(index_path, 'w', encoding='utf-8') as f:
-                f.write("""<!DOCTYPE html>
-<html>
-<head>
-    <title>Mental Health Chatbot</title>
-    <meta charset="utf-8">
-</head>
-<body>
-    <h1>🤖 Mental Health Chatbot</h1>
-    <p>Chatbot hỗ trợ sức khỏe tâm thần với AI-powered transition logic</p>
-    <div id="chat-container">
-        <div id="messages"></div>
-        <input type="text" id="user-input" placeholder="Nhập tin nhắn của bạn...">
-        <button onclick="sendMessage()">Gửi</button>
-    </div>
-    
-    <script>
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const message = input.value.trim();
-            if (!message) return;
-            
-            // Display user message
-            const messagesDiv = document.getElementById('messages');
-            messagesDiv.innerHTML += `<div><strong>Bạn:</strong> ${message}</div>`;
-            
-            try {
-                const response = await fetch('/api/chat/send_message', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        message: message,
-                        history: [],
-                        state: {},
-                        use_ai: true
-                    })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    messagesDiv.innerHTML += `<div><strong>Bot:</strong> ${data.message}</div>`;
-                } else {
-                    messagesDiv.innerHTML += `<div><strong>Error:</strong> ${data.error}</div>`;
-                }
-            } catch (error) {
-                messagesDiv.innerHTML += `<div><strong>Error:</strong> ${error.message}</div>`;
-            }
-            
-            input.value = '';
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
+        # Check critical templates
+        critical_templates = ['base.html', 'home.html', 'chat.html', 'assessment.html']
+        missing_templates = []
         
-        // Allow Enter key to send message
-        document.getElementById('user-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    </script>
+        for template in critical_templates:
+            template_path = os.path.join(template_dir, template)
+            if not os.path.exists(template_path):
+                missing_templates.append(template)
+            else:
+                print(f"✅ Template found: {template}")
+        
+        if missing_templates:
+            print(f"⚠️ Warning: Missing templates: {', '.join(missing_templates)}")
+        else:
+            print("✅ All critical templates found")
     
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #chat-container { border: 1px solid #ddd; padding: 20px; margin-top: 20px; }
-        #messages { height: 400px; overflow-y: scroll; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; }
-        #user-input { width: 70%; padding: 10px; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background: #0056b3; }
-    </style>
-</body>
-</html>""")
+    # Check static directory
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    if not os.path.exists(static_dir):
+        print(f"⚠️ Warning: Static directory not found at {static_dir}")
+        os.makedirs(static_dir, exist_ok=True)
+        os.makedirs(os.path.join(static_dir, 'css'), exist_ok=True)
+        os.makedirs(os.path.join(static_dir, 'js'), exist_ok=True)
+        os.makedirs(os.path.join(static_dir, 'images'), exist_ok=True)
+    else:
+        print(f"✅ Static directory found: {static_dir}")
     
-    print("✅ Application setup complete!")
-    
-    # Start development server
+    # Run the application
     try:
         app.run(
-            host='0.0.0.0',
-            port=int(os.environ.get('PORT', 5000)),
+            host='0.0.0.0', 
+            port=5000, 
             debug=app.config['DEBUG'],
-            threaded=True
+            use_reloader=app.config['DEBUG']
         )
     except Exception as e:
-        print(f"❌ Failed to start server: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Failed to start application: {e}")
+        sys.exit(1)

@@ -10,6 +10,7 @@ from datetime import datetime
 from src.services.together_client import get_together_client
 from src.core.transition_logic import TransitionManager
 from src.services.ai_context_analyzer import classify_emotional_context
+from positive_closure import PositiveClosureManager
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class ChatEngine:
     def __init__(self):
         self.client = get_together_client()
         self.transition_manager = TransitionManager()
+        sself.closure_manager = PositiveClosureManager()
         
         # Template responses
         self.templates = {
@@ -81,6 +83,19 @@ class ChatEngine:
             # Add bot response to history
             final_history = updated_history + [{'role': 'bot', 'content': bot_response}]
             
+            # Kiểm tra closure trước khi return
+            if not state.get('closure_applied', False):
+                should_close, reason = self.closure_manager.should_trigger_closure(
+                    final_history, ai_context
+                )
+                
+                if should_close:
+                    closure_message = self.closure_manager.generate_closure_message(
+                        final_history, ai_context
+                    )
+                    # Override response với closure message
+                    return closure_message
+                
             return {
                 'message': bot_response,
                 'history': final_history,

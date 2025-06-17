@@ -46,7 +46,7 @@ def initialize_chat_services():
 
 # Initialize on module load
 initialize_chat_services()
-
+@chat_bp.route('/send', methods=['POST'])
 @chat_bp.route('/send_message', methods=['POST'])
 def send_message():
     """

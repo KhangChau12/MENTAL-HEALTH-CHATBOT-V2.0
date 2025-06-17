@@ -4,6 +4,7 @@
 
 {% block additional_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/assessment-interface.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -145,6 +146,42 @@
                         Bắt đầu DASS-21
                     </button>
                 </div>
+
+                <div class="assessment-card" data-assessment="suicide_risk">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Đánh giá Nguy cơ</h3>
+                        <div class="card-badge">5 câu hỏi</div>
+                    </div>
+                    <div class="card-content">
+                        <p class="card-description">
+                            Đánh giá nhanh nguy cơ tự tử và các yếu tố liên quan. 
+                            Đảm bảo an toàn và hỗ trợ kịp thời.
+                        </p>
+                        <div class="card-features">
+                            <div class="feature-item">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20,6 9,17 4,12"/>
+                                </svg>
+                                Sàng lọc nhanh
+                            </div>
+                            <div class="feature-item">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12,6 12,12 16,14"/>
+                                </svg>
+                                2-3 phút
+                            </div>
+                        </div>
+                    </div>
+                    <button class="select-assessment-btn" data-assessment="suicide_risk">
+                        Bắt đầu đánh giá
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -155,41 +192,32 @@
             <!-- Progress Header -->
             <div class="progress-header">
                 <div class="progress-info">
-                    <h2 id="current-assessment-title" class="assessment-title">Đánh giá PHQ-9</h2>
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
-                        </div>
-                        <span id="progress-text" class="progress-text">1/9</span>
-                    </div>
+                    <h2 id="current-assessment-title" class="assessment-title">Đánh giá</h2>
+                    <p class="assessment-instructions">
+                        Vui lòng trả lời các câu hỏi một cách chân thật nhất. 
+                        Không có câu trả lời đúng hay sai.
+                    </p>
                 </div>
-                <button id="exit-assessment" class="exit-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                    Thoát
-                </button>
+                
+                <div class="progress-container">
+                    <div class="progress-track">
+                        <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <span id="progress-text" class="progress-text">0/0</span>
+                </div>
             </div>
 
-            <!-- Question Card -->
-            <div class="question-card">
-                <div class="question-number">
-                    <span id="question-number">Câu hỏi 1</span>
-                </div>
-                <div class="question-content">
+            <!-- Question Container -->
+            <div id="question-container" class="question-container">
+                <div class="question-card">
                     <h3 id="question-text" class="question-text">
                         Câu hỏi sẽ xuất hiện ở đây...
                     </h3>
-                    <p class="question-subtitle">
-                        Vui lòng chọn mức độ phù hợp nhất với tình trạng của bạn trong 2 tuần qua:
-                    </p>
+                    
+                    <div id="answer-options" class="answer-options">
+                        <!-- Options will be populated by JavaScript -->
+                    </div>
                 </div>
-            </div>
-
-            <!-- Answer Options -->
-            <div id="answer-options" class="answer-options">
-                <!-- Options will be populated by JavaScript -->
             </div>
 
             <!-- Navigation -->
@@ -227,75 +255,65 @@
             </div>
 
             <div class="results-content">
-                <div class="score-card">
-                    <div class="score-header">
-                        <h3>Điểm số tổng</h3>
-                        <span id="total-score" class="score-value">0</span>
+                <div class="results-grid">
+                    <!-- Score Card -->
+                    <div class="score-card featured">
+                        <div class="score-header">
+                            <h3>Điểm số tổng</h3>
+                            <span id="total-score" class="score-value">0</span>
+                        </div>
+                        <div class="score-interpretation">
+                            <div id="score-level" class="level-indicator">Bình thường</div>
+                            <p id="score-description" class="level-description">
+                                Mô tả chi tiết về mức độ sẽ xuất hiện ở đây.
+                            </p>
+                        </div>
                     </div>
-                    <div class="score-interpretation">
-                        <div id="score-level" class="level-indicator">Bình thường</div>
-                        <p id="score-description" class="level-description">
-                            Mô tả chi tiết về mức độ sẽ xuất hiện ở đây.
-                        </p>
-                    </div>
-                </div>
 
-                <div class="recommendations-card">
-                    <h3>Khuyến nghị</h3>
-                    <div id="recommendations-list" class="recommendations-list">
-                        <!-- Recommendations will be populated by JavaScript -->
+                    <!-- Recommendations Card -->
+                    <div class="recommendations-card">
+                        <h3>Khuyến nghị</h3>
+                        <div id="recommendations-list" class="recommendations-list">
+                            <!-- Recommendations will be populated by JavaScript -->
+                        </div>
                     </div>
-                </div>
 
-                <div class="actions-card">
-                    <h3>Bước tiếp theo</h3>
-                    <div class="action-buttons">
-                        <button id="download-results" class="action-btn primary">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7,10 12,15 17,10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            Tải xuống PDF
-                        </button>
-                        <button id="new-assessment" class="action-btn secondary">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="1,4 1,10 7,10"/>
-                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                            </svg>
-                            Đánh giá mới
-                        </button>
-                        <a href="{{ url_for('chat') }}" class="action-btn outline">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                            </svg>
-                            Thử AI Chat
-                        </a>
+                    <!-- Actions Card -->
+                    <div class="actions-card">
+                        <h3>Hành động tiếp theo</h3>
+                        <div class="actions-grid">
+                            <button class="action-btn primary" onclick="window.assessmentInterface.restartAssessment()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="1 4 1 10 7 10"/>
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                                </svg>
+                                Đánh giá lại
+                            </button>
+                            
+                            <button class="action-btn secondary" onclick="window.assessmentInterface.exportResults()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7,10 12,15 17,10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Xuất kết quả
+                            </button>
+                            
+                            <a href="/" class="action-btn outline">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                </svg>
+                                Về trang chủ
+                            </a>
+                            
+                            <a href="/chat" class="action-btn outline">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                </svg>
+                                Chế độ AI
+                            </a>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Disclaimer -->
-    <div class="disclaimer">
-        <div class="container">
-            <div class="disclaimer-content">
-                <div class="disclaimer-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                </div>
-                <div class="disclaimer-text">
-                    <p>
-                        <strong>Lưu ý:</strong> Đây chỉ là công cụ sàng lọc và không thay thế cho chẩn đoán y tế chuyên nghiệp. 
-                        Nếu bạn có những lo ngại về sức khỏe tâm thần, vui lòng tham khảo ý kiến bác sĩ hoặc chuyên gia tâm lý.
-                    </p>
-                    <p class="emergency-line">
-                        <strong>Đường dây nóng hỗ trợ tâm lý:</strong> 1800 1567 (miễn phí 24/7)
-                    </p>
                 </div>
             </div>
         </div>
