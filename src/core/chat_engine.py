@@ -10,7 +10,7 @@ from datetime import datetime
 from src.services.together_client import get_together_client
 from src.core.transition_logic import TransitionManager
 from src.services.ai_context_analyzer import classify_emotional_context
-from positive_closure import PositiveClosureManager
+from src.core.positive_closure import PositiveClosureManager
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ChatEngine:
     def __init__(self):
         self.client = get_together_client()
         self.transition_manager = TransitionManager()
-        sself.closure_manager = PositiveClosureManager()
+        self.closure_manager = PositiveClosureManager()
         
         # Template responses
         self.templates = {

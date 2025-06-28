@@ -261,7 +261,7 @@ class ChatInterface {
                 }
                 
                 // Try real API
-                fetch('/api/chat/send', {
+                fetch('/api/chat/send_message', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
